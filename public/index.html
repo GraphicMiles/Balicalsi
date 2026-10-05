@@ -3,8 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Beach Buggy Online — 200%</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<title>Island Rally — Coastal Championship</title>
 <style>
 :root{
   --ink:#0c1d26; --cor:#ff5a1f; --gold:#ffd23f; --glass:rgba(8,24,32,.72);
@@ -118,6 +117,107 @@ canvas#c{display:block;width:100%;height:100%}
 .settings{text-align:left;font-size:17px;font-weight:600}
 .settings label{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}
 .settings input[type=range]{flex:1}
+
+/* ===== ISLAND RALLY art direction ===== */
+:root{
+  --ink:#f7f2e8;--cor:#f2784d;--gold:#ffd16a;--glass:rgba(9,25,34,.78);
+  --ok:#59c48a;--blue:#42b6ca;--purple:#a568db;
+}
+html,body{background:#142533;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;touch-action:auto;}
+canvas#c{touch-action:none;}
+canvas#c{background:linear-gradient(#697a9a,#f0b184 60%,#31bdc6);}
+.ov{background:rgba(5,15,23,.56);backdrop-filter:blur(2px);}
+#lobby.ov{
+  align-items:center;justify-content:flex-start;padding:clamp(16px,3.8vw,58px);backdrop-filter:none;
+  background:linear-gradient(90deg,rgba(5,18,27,.94) 0%,rgba(6,20,29,.82) 34%,rgba(8,26,34,.28) 67%,rgba(8,26,34,.08) 100%);
+}
+#lobby .hero-card{
+  position:relative;overflow:auto;max-height:calc(100dvh - 34px);width:min(520px,100%);max-width:520px;
+  margin:0 0 0 clamp(0px,3.1vw,44px);padding:clamp(22px,3vw,34px);
+  text-align:left;color:#f8f4e9;touch-action:pan-y;border:1px solid rgba(255,233,190,.25);border-radius:25px;
+  background:linear-gradient(150deg,rgba(18,42,51,.94),rgba(8,24,33,.88));
+  box-shadow:0 28px 90px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.12);
+  backdrop-filter:blur(18px) saturate(1.2);scrollbar-width:thin;scrollbar-color:rgba(255,209,106,.5) transparent;
+}
+#lobby .hero-card:before{content:"";position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,#ff8256,#ffd16a 54%,#50d4cb);}
+.brand-lockup{display:flex;align-items:center;gap:15px;margin:1px 0 10px;}
+.brand-mark{width:61px;height:61px;display:grid;place-items:center;flex:none;border-radius:18px;
+  background:linear-gradient(145deg,#fa8352,#df503e);border:1px solid rgba(255,236,191,.65);
+  box-shadow:0 8px 24px rgba(232,104,68,.26),inset 0 1px 0 rgba(255,255,255,.35);}
+.brand-mark svg{width:41px;height:41px;fill:none;stroke:#fff5dc;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round;}
+.eyebrow{font-size:11px;font-weight:850;letter-spacing:.24em;color:#ffd16a;margin:0 0 3px;}
+.hero-card h1{display:flex;gap:10px;align-items:baseline;margin:0;font-size:clamp(39px,5vw,55px);line-height:.9;font-weight:950;letter-spacing:.015em;color:#fff8e8;text-shadow:0 5px 26px rgba(0,0,0,.18);}
+.hero-card h1 em{font-style:normal;color:#ff8b5d;}
+.hero-sub{max-width:420px;margin:14px 0 17px;color:rgba(246,240,226,.77);font-size:14px;line-height:1.55;font-weight:500;}
+.race-specs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:13px 0 20px;padding:12px 0;border-top:1px solid rgba(255,255,255,.11);border-bottom:1px solid rgba(255,255,255,.11);}
+.race-specs div{display:flex;flex-direction:column;gap:2px;padding:0 8px;border-right:1px solid rgba(255,255,255,.1);}
+.race-specs div:first-child{padding-left:0}.race-specs div:last-child{border:0;}
+.race-specs b{font-size:20px;line-height:1;font-weight:900;color:#ffd16a;}
+.race-specs span{font-size:9px;letter-spacing:.09em;font-weight:800;color:rgba(244,239,225,.68);white-space:nowrap;}
+.field-label{display:block;margin:0 0 5px;font-size:10px;font-weight:850;letter-spacing:.16em;color:rgba(241,236,222,.63);}
+.hero-card .in{height:45px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.075);color:#fff9ee;border-radius:11px;padding:10px 13px;font:600 15px system-ui,sans-serif;text-align:left;outline:none;}
+.hero-card .in:focus{border-color:rgba(255,209,106,.8);box-shadow:0 0 0 3px rgba(255,209,106,.12);}
+.hero-card .in::placeholder{color:rgba(255,255,255,.42);}
+.color-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 10px;}
+.color-row .field-label{margin:0;}
+.hero-card .sw{gap:10px;margin:0;}
+.hero-card .sw i{width:23px;height:23px;border:2px solid rgba(255,255,255,.35);box-shadow:0 2px 8px rgba(0,0,0,.24);}
+.hero-card .sw i.sel{outline:2px solid #ffe7ae;outline-offset:3px;}
+.hero-card .seg{gap:9px;margin:12px 0 10px;}
+.hero-card .seg button{min-width:0;padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(255,255,255,.065);color:#f8f4e9;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;font:800 13px system-ui,sans-serif;}
+.hero-card .seg button small{font-size:10px;font-weight:550;color:rgba(255,255,255,.55);}
+.hero-card .seg button.sel{border-color:rgba(255,151,103,.8);background:linear-gradient(130deg,rgba(238,111,73,.28),rgba(255,179,89,.12));color:#fff5e3;box-shadow:inset 0 0 0 1px rgba(247,139,88,.17);}
+.hero-card .seg button.sel small{color:rgba(255,239,212,.75);}
+.hero-card .players{gap:5px;margin:8px 0 10px;max-height:118px;}
+.hero-card .pl{padding:7px 10px;background:rgba(255,255,255,.065);color:#f6f1e7;font-size:13px;border:1px solid rgba(255,255,255,.055);}
+.hero-card .pl .dot{width:11px;height:11px;box-shadow:0 0 0 2px rgba(255,255,255,.14);}
+.hero-card .pl .tag{background:#ffd16a;font-size:9px;}
+.hero-card .row{margin:9px 0;gap:8px;}
+.hero-card .join-row .in{height:47px;text-align:center;letter-spacing:.18em;font-weight:800;}
+.hero-card .cta{height:48px;margin-top:8px;padding:10px 18px;border-radius:12px;background:linear-gradient(135deg,#ff8759,#ed6047);box-shadow:0 8px 22px rgba(220,83,56,.25);font:850 14px system-ui,sans-serif;letter-spacing:.09em;}
+.hero-card .cta:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.hero-card .cta.blue{background:linear-gradient(135deg,#38b5c7,#3388ad);box-shadow:0 8px 20px rgba(45,157,181,.2);}
+.hero-card .cta.ghost{height:42px;margin-top:7px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.16);color:rgba(250,245,233,.88);box-shadow:none;font-size:12px;}
+.hero-card .cta.ghost span{font-weight:550;opacity:.67;letter-spacing:.04em;}
+.hero-card .cta:disabled{filter:grayscale(.2);opacity:.6;}
+.hero-card .msg{font-size:12px;min-height:16px;margin-top:5px;color:#ffc48c;}
+.control-hint{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,.09);color:rgba(239,235,222,.5);font-size:8px;font-weight:800;letter-spacing:.08em;white-space:nowrap;}
+.control-hint i{width:3px;height:3px;border-radius:50%;background:#ffca77;opacity:.8;}
+.card:not(.hero-card){background:linear-gradient(150deg,rgba(18,42,51,.97),rgba(8,24,33,.96));color:#f8f4e9;border:1px solid rgba(255,233,190,.22);border-radius:22px;box-shadow:0 26px 84px rgba(0,0,0,.48);backdrop-filter:blur(16px);text-align:center;}
+.card:not(.hero-card) h1{color:#fff4df;}
+.card:not(.hero-card) .sub{color:rgba(246,240,226,.72);}
+.card:not(.hero-card) .line,.card:not(.hero-card) .pl{background:rgba(255,255,255,.075);color:#f8f4e9;}
+.card:not(.hero-card) .cta{background:linear-gradient(135deg,#ff8759,#ed6047);box-shadow:0 8px 22px rgba(220,83,56,.25);}
+.card:not(.hero-card) .cta.ghost{background:transparent;border-color:rgba(255,255,255,.2);color:#f8f4e9;box-shadow:none;}
+.card:not(.hero-card) .settings{color:#efeadd;}
+.card:not(.hero-card) .in{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff;}
+.chip{background:rgba(10,27,35,.68);border-color:rgba(255,243,217,.23);backdrop-filter:blur(12px);}
+#time{background:rgba(10,27,35,.68);border:1px solid rgba(255,255,255,.11);}
+#map{background:rgba(10,27,35,.55);backdrop-filter:blur(10px);}
+.btn{backdrop-filter:blur(10px);border-color:rgba(255,255,255,.68);}
+#gearBtn,#tiltBtn{backdrop-filter:blur(12px);}
+@media(max-width:700px){
+  #lobby.ov{justify-content:center;padding:13px;background:linear-gradient(180deg,rgba(5,18,27,.54),rgba(5,18,27,.86));}
+  #lobby .hero-card{margin:0;width:min(480px,100%);max-width:480px;max-height:calc(100dvh - 26px);padding:21px 19px;border-radius:20px;}
+  .brand-mark{width:48px;height:48px;border-radius:14px}.brand-mark svg{width:34px;height:34px;}
+  .hero-card h1{font-size:39px}.hero-sub{font-size:13px;margin:10px 0 13px;}
+  .race-specs{margin:10px 0 14px;padding:10px 0;}.race-specs b{font-size:18px}.race-specs span{font-size:8px;letter-spacing:.04em;}
+  .hero-card .sw{gap:8px}.hero-card .sw i{width:21px;height:21px;}
+  .control-hint{font-size:7px;gap:6px;}
+}
+@media(max-height:720px) and (min-width:701px){
+  #lobby .hero-card{padding:20px 26px;max-height:calc(100dvh - 22px);}
+  .hero-sub{margin:9px 0 10px}.race-specs{margin:8px 0 12px;padding:8px 0;}
+  .hero-card .seg{margin:8px 0}.control-hint{margin-top:7px;padding-top:7px;}
+}
+@media(max-height:680px){
+  .control-hint{display:none}.hero-sub{margin:5px 0 8px;font-size:12px;line-height:1.35}
+  .race-specs{margin:5px 0 8px;padding:6px 0}.brand-lockup{margin-bottom:5px}
+  .color-row{margin:8px 0 5px}.hero-card .seg{margin:7px 0 5px}
+  .hero-card .in{height:41px}.hero-card .cta{height:42px;margin-top:5px}.hero-card .cta.ghost{height:38px}
+}
+@media(max-width:390px){.brand-mark{width:40px;height:40px}.brand-mark svg{width:29px;height:29px}.brand-lockup{gap:9px}.hero-card h1{font-size:29px;gap:4px}.eyebrow{font-size:9px}}
+
 </style>
 </head>
 <body>
@@ -159,31 +259,47 @@ canvas#c{display:block;width:100%;height:100%}
   </div>
 </div>
 
-<!-- Lobby overlay -->
+<!-- Coastal championship lobby -->
 <div id="lobby" class="ov">
-  <div class="card">
-    <h1>BEACH BUGGY ONLINE</h1>
-    <p class="sub">200% upgrade · 6-player championship · real-time multiplayer</p>
+  <div class="card hero-card">
+    <div class="brand-lockup">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 64 64" role="presentation"><path d="M8 43c8-9 16-9 24 0s16 9 24 0"/><path d="M12 32c7-7 14-7 21 0s14 7 19 0"/><path d="M32 10v15M25 25l7-8 7 8"/></svg>
+      </div>
+      <div>
+        <div class="eyebrow">THE COAST IS YOURS</div>
+        <h1><span>ISLAND</span><em>RALLY</em></h1>
+      </div>
+    </div>
+    <p class="sub hero-sub">Race the palms, drift through the village, and chase the tide.</p>
 
+    <div class="race-specs">
+      <div><b>01</b><span>COASTAL CIRCUIT</span></div>
+      <div><b>03</b><span>LAPS TO GLORY</span></div>
+      <div><b>06</b><span>RACERS ON GRID</span></div>
+    </div>
+
+    <label class="field-label" for="name">RACER NAME</label>
     <input id="name" class="in" maxlength="16" placeholder="Your name" value="Racer">
 
-    <div class="sw" id="swatches"></div>
+    <div class="color-row"><span class="field-label">PICK YOUR PAINT</span><div class="sw" id="swatches"></div></div>
 
     <div class="seg" id="modeSeg">
-      <button data-mode="dual" class="sel">Dual · 2P</button>
-      <button data-mode="championship">Championship · 6P</button>
+      <button data-mode="dual" class="sel"><b>DUO SPRINT</b><small>2 racers</small></button>
+      <button data-mode="championship"><b>ISLAND CUP</b><small>6 racers</small></button>
     </div>
 
     <div class="players" id="players"></div>
 
-    <div class="row">
+    <div class="row join-row">
       <input id="code" class="in" style="flex:1;min-width:120px" maxlength="5" placeholder="ROOM CODE">
-      <button class="cta blue" id="joinBtn" style="width:auto;padding:14px 18px">Join</button>
+      <button class="cta blue" id="joinBtn" style="width:auto;padding:14px 18px">JOIN</button>
     </div>
 
-    <button class="cta" id="createBtn">Create Room</button>
-    <button class="cta ghost" id="offlineBtn">Play Offline (vs bots)</button>
+    <button class="cta" id="createBtn">CREATE ROOM</button>
+    <button class="cta ghost" id="offlineBtn">PLAY OFFLINE <span>· VS ISLANDERS</span></button>
     <div class="msg" id="lobbyMsg"></div>
+    <div class="control-hint"><span>WASD / ARROWS</span><i></i><span>SPACE TO BOOST</span><i></i><span>E TO USE ITEM</span></div>
   </div>
 </div>
 
@@ -216,6 +332,7 @@ canvas#c{display:block;width:100%;height:100%}
 <div id="load"><div class="ring"></div><div>Loading engine…</div></div>
 
 <script src="three.min.js"></script>
+<script src="coastal-world.js"></script>
 <script src="client.js"></script>
 </body>
 </html>

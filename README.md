@@ -1,79 +1,53 @@
-# Beach Buggy Online — 200% Upgrade
+# Island Rally
 
-A ground-up upgrade of the original *Beach Buggy Run*: PBR graphics, a helmeted
-humanoid driver, exhaust gas, dust, skid marks, boost flames, a real-time
-**online multiplayer** server with **Dual (2P)** and **Championship (6P)** modes,
-power-ups, projectiles, and a full touch/tilt/tap control scheme.
+A stylized, tropical arcade racing game built with Three.js and a small Node/WebSocket server. The art direction is a warm, sunlit island circuit: cobbled village lanes, packed-sand straights, a glossy turquoise lagoon, palms, surf shacks, docks, trackside festival details, and original procedural buggy/pickup visuals.
 
-## Run it
+The scene is generated locally in the browser—there are no external model, texture, or font downloads required. A capped/adaptive render scale helps the game stay responsive across desktop and mobile hardware.
+
+## Run locally
+
 ```bash
-cd beach-buggy-game
-npm install          # installs ws (already done)
-npm start            # serves http + websocket on :3000
+npm ci
+npm start
 ```
-Open `http://localhost:3000` in a browser. For multiplayer, open the URL in
-**two or more tabs / devices** and either *Create Room* or *Join* with the code.
 
-To play instantly without a network, click **Play Offline (vs bots)**.
+Then open `http://localhost:3000`.
 
-## Lobby
-- Pick a name, a color, and a mode (Dual · 2P or Championship · 6P).
-- Create a room → share the 4-letter code, or Join with a code.
-- The host presses **Start Race**. Empty seats are filled by local AI bots.
-- Server relays every human car + hits; bots are simulated locally.
+## Race modes
+
+- **Play Offline** — race against local islander bots.
+- **Duo Sprint** — create a private room for two players.
+- **Island Cup** — host a six-player room; share the room code and start when ready.
 
 ## Controls
-| Action | Keyboard | Touch / Mobile |
+
+| Action | Keyboard | Touch / mobile |
 |---|---|---|
-| Gas | `↑` / `W` | GAS button (analog ramp) |
-| Brake / reverse | `↓` / `S` | BRAKE button |
-| Steer | `←` `→` / `A` `D` | Tap **left/right half** of screen, or **Tilt** (gyro) |
-| Boost (200 km/h) | `Space` / `Shift` | BOOST button (drains gauge, recharges) |
-| Use item | `E` / `Enter` | ITEM button |
+| Accelerate | `↑` / `W` | **GAS** |
+| Brake / reverse | `↓` / `S` | **BRAKE** |
+| Steer | `←` `→` / `A` `D` | Tap left/right half of screen, or enable tilt |
+| Boost | `Space` / `Shift` | **BOOST** |
+| Use item | `E` / `Enter` | **ITEM** |
 
-Settings (⚙): steering sensitivity, throttle response, invert tilt, audio, camera shake.
+Pick up glowing mystery crates for rockets, bombs, shields, nitro, warp jumps, and mines. Settings include steering sensitivity, throttle response, audio, tilt inversion, and camera shake.
 
-## Power-ups (grab glowing crates on the track)
-- 🚀 **Rocket** — homing missile
-- 💣 **Bomb** — thrown explosive
-- 🛡 **Shield** — protective dome (blocks one hit)
-- ⚡ **Nitro** — instant speed burst
-- 🌀 **Warp** — teleport forward ~150 m
-- 💥 **Mine** — drop a trap behind you
+## Visual pass
 
-## What got upgraded to "200%"
-- **Visuals:** PBR `MeshPhysicalMaterial` paint with clearcoat, PMREM environment
-  reflections, ACES tone mapping, 2048 soft shadows, gradient sky + sun glow,
-  drifting clouds, animated sea, detailed asphalt/kerbs/start line.
-- **Car:** extruded body, roll cage, headlights + beams, taillights, exhaust pipe,
-  alloy wheels with tread, steering wheel, **helmeted humanoid driver** (arms to
-  wheel, legs, boots) that leans into corners.
-- **Atmosphere/FX:** continuous **exhaust gas**, tire dust off-road, white drift
-  smoke, persistent **skid marks**, boost flames, explosion bursts, camera shake,
-  speed-line vignette at high speed.
-- **Driving:** speed-sensitive steering, gentle **auto-align** to the track,
-  analog throttle, top speed ~**200 km/h**, rubber-banding AI.
-- **Audio:** synthesized engine note (pitch tracks speed), boost whoosh, pickup,
-  explosion and hit SFX.
-- **HUD:** live position, lap, clock, speed, boost gauge, held item, standings
-  list and a real-time minimap.
+- Golden-hour sky, warm atmospheric haze, moving lagoon water, shoreline foam, and distant island silhouettes.
+- Three distinct road treatments across the circuit: village cobbles, packed earth, and shaded asphalt, with clean edge lines and center dashes.
+- Instanced palms, low-poly coastal rocks, pastel surf cottages, shop signs, beach huts, docks, surfboards, pennants, and start-line garlands.
+- A checkered coastal grand-prix gate and readable animated mystery crates.
+- Updated responsive lobby/HUD styling and an adaptive pixel-ratio cap for smoother rendering on mobile.
 
-## Deploy for real online play
-The server is plain Node (`server.js`) + static files in `public/`. Host it
-anywhere (e.g. a VM, Railway, Render, Fly) and point players at the public URL.
-The client auto-detects `ws://` or `wss://` from `location.host`.
+The game is an original browser-based arcade prototype; the scene uses procedural geometry and textures rather than imported AAA production assets.
 
-## Deploy to Render
-This repo includes a `render.yaml` Blueprint, so Render provisions the whole
-stack from the repo:
+## Deploy
 
-1. Push to GitHub (already done).
-2. In the Render dashboard choose **New → Blueprint** and connect
-   `GraphicMiles/Balicalsi`, or run `render blueprint launch` with the
-   [Render CLI](https://render.com/docs/cli).
-3. Render runs `npm install`, then `node server.js` on the port it injects via
-   `PORT`. The app's WebSocket server (lobby + matches) is served over
-   `wss://` automatically — no extra config needed.
+The service serves `public/` and the WebSocket multiplayer endpoint from the same Node process. Set `PORT` in the hosting environment and run:
 
-Free-plan note: the service sleeps after ~15 min idle and wakes on the next
-request (first load takes a few seconds).
+```bash
+npm ci
+npm start
+```
+
+The client selects `ws://` or `wss://` from the page protocol automatically. A `render.yaml` Blueprint is included for Render deployment.

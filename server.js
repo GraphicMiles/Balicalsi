@@ -114,7 +114,7 @@ wss.on('connection', (ws) => {
       room.state = 'racing';
       room.startTime = Date.now() + 3800;     // ~3.8s countdown
       room.finishOrder = [];
-      broadcast(room, { type: 'start', startTime: room.startTime, seed: room.seed,
+      broadcast(room, { type: 'start', startTime: room.startTime, seed: room.seed, max: room.max,
                         players: publicPlayers(room), mode: room.mode });
     }
 
@@ -234,5 +234,5 @@ wss.on('connection', (ws) => { ws.isAlive = true; ws.on('pong', () => { ws.isAli
 wss.on('close', () => clearInterval(interval));
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Beach Buggy Online server running on http://0.0.0.0:${PORT}`);
+  console.log(`Island Rally server running on http://0.0.0.0:${PORT}`);
 });

@@ -34,12 +34,12 @@ const ITEM_NAME = {rocket:'🚀 Rocket',bomb:'💣 Bomb',dome:'🛡 Shield',spee
 
 /* ---------------- renderer / scene / camera ---------------- */
 const renderer = new T.WebGLRenderer({canvas:$('c'),antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,innerWidth<760?1.35:1.7));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFSoftShadowMap;
 renderer.outputEncoding = T.sRGBEncoding;
 renderer.toneMapping = T.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMappingExposure = .78;
 
 const scene = new T.Scene();
 scene.fog = new T.Fog(0xbfe3f0, 160, 620);
@@ -103,7 +103,7 @@ for(let i=0;i<24;i++){const s=new T.Sprite(new T.SpriteMaterial({map:cloudTex,tr
 const sunGlow = new T.Sprite(new T.SpriteMaterial({map:tex(128,128,g=>{const q=g.createRadialGradient(64,64,4,64,64,62);
   q.addColorStop(0,'rgba(255,250,220,1)');q.addColorStop(.25,'rgba(255,225,150,.55)');q.addColorStop(1,'rgba(255,200,100,0)');
   g.fillStyle=q;g.fillRect(0,0,128,128)}),fog:false,transparent:true,blending:T.AdditiveBlending,depthWrite:false}));
-sunGlow.scale.set(320,320,1);scene.add(sunGlow);
+sunGlow.scale.set(185,185,1);sunGlow.material.opacity=.52;scene.add(sunGlow);
 
 /* ---------------- sea + island ---------------- */
 const sandTex = tex(512,512,(g,w,h)=>{g.fillStyle='#e6cf98';g.fillRect(0,0,w,h);
@@ -227,7 +227,7 @@ const TG=tireGeo();
 
 function makeCar(col,skin,isPlayer){
   const root=new T.Group(),tilt=new T.Group();root.add(tilt);
-  const paint=new T.MeshPhysicalMaterial({color:col,metalness:.45,roughness:.28,clearcoat:1,clearcoatRoughness:.05,envMapIntensity:1});
+  const paint=new T.MeshPhysicalMaterial({color:col,metalness:.06,roughness:.4,clearcoat:.58,clearcoatRoughness:.2,envMapIntensity:.24,emissive:col,emissiveIntensity:.08});
   const steel=new T.MeshStandardMaterial({color:0x22252b,metalness:.85,roughness:.35,envMapIntensity:1});
   const rubber=new T.MeshStandardMaterial({color:0x161718,roughness:.9,metalness:0});
   const alloy=new T.MeshStandardMaterial({color:0xdfe3e8,metalness:1,roughness:.18,envMapIntensity:1.3});
@@ -241,6 +241,9 @@ function makeCar(col,skin,isPlayer){
   s.quadraticCurveTo(1.65,.45,1.5,.35);s.lineTo(-1.45,.35);
   const bg=new T.ExtrudeGeometry(s,{depth:.9,bevelEnabled:true,bevelThickness:.16,bevelSize:.16,bevelSegments:10,curveSegments:40});
   bg.translate(0,0,-.45);const body=new T.Mesh(bg,paint);body.castShadow=true;body.receiveShadow=true;tilt.add(body);
+  const livery=new T.MeshStandardMaterial({color:0x17232a,metalness:.18,roughness:.42});
+  [-.18,.18].forEach(z=>{const stripe=new T.Mesh(new T.BoxGeometry(.72,.035,.12),livery);stripe.position.set(1.02,.862,z);tilt.add(stripe);});
+  const grille=new T.Mesh(new T.BoxGeometry(.09,.23,.5),new T.MeshStandardMaterial({color:0x101519,metalness:.25,roughness:.55}));grille.position.set(1.54,.52,0);tilt.add(grille);
 
   // roll cage
   const tube=pp=>tilt.add(new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pp.map(a=>new T.Vector3(...a))),48,.055,12),steel));
@@ -249,6 +252,7 @@ function makeCar(col,skin,isPlayer){
   tube([[-.55,2.2,0],[.1,2.0,0],[.8,1.75,0]]);
   tube([[-.55,2.2,-.5],[.1,2.35,0],[.8,1.75,.5]]);
   tube([[-.55,2.2,.5],[.1,2.35,0],[.8,1.75,-.5]]);
+  tube([[1.52,.38,-.55],[1.76,.31,0],[1.52,.38,.55]]);
 
   // headlights + taillights
   [-1,1].forEach(z=>{const h=new T.Mesh(new T.SphereGeometry(.12,20,14),
@@ -466,7 +470,7 @@ function getSteer(){let st=(K.ArrowRight||K.KeyD?1:0)-(K.ArrowLeft||K.KeyA?1:0);
 function connect(){
   const url=(location.protocol==='https:'?'wss':'ws')+'://'+location.host;
   try{ws=new WebSocket(url);}catch(e){return;}
-  ws.onopen=()=>{connected=true;};
+  ws.onopen=()=>{connected=true;$('lobbyMsg').textContent='';};
   ws.onclose=()=>{connected=false;setTimeout(connect,1500);};
   ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data);}catch(e){return;}onMsg(m);};
 }
@@ -528,6 +532,7 @@ function updateLobby(m){const host=m.host;
   $('createBtn').disabled = !isHost;
 }
 $('createBtn').onclick=()=>{initAudio();if(!connected){toast('Connecting…');return;}
+  if(roomCode&&myId){ws.send(JSON.stringify({type:'start'}));return;}
   ws.send(JSON.stringify({type:'create',mode, name:$('name').value||'Player', color:myColor}));};
 $('joinBtn').onclick=()=>{initAudio();if(!connected){toast('Connecting…');return;}
   const code=($('code').value||'').toUpperCase().trim();if(!code){$('lobbyMsg').textContent='Enter a room code';return;}
@@ -545,7 +550,7 @@ $('setShake').onchange=e=>settings.shake=e.target.checked;
 
 /* ---------------- race setup ---------------- */
 function startRace(m){
-  seed=m.seed||seed;roomMax=m.max;
+  seed=m.seed||seed;roomMax=m.max||(m.mode==='championship'?6:2);
   const humanSlots=new Set(m.players.map(p=>p.slot));
   const names={},colors={};m.players.forEach(p=>{names[p.slot]=p.name;colors[p.slot]=p.color;});
   // clear old
@@ -577,7 +582,7 @@ function startOffline(){
   $('lobby').classList.add('hidden');$('results').classList.add('hidden');$('hud').classList.remove('hidden');
   camH=cars[0].h;camera.position.set(cars[0].x-8,4,cars[0].z);
 }
-function buildWorld(s){if(!sceneryBuilt){buildScenery(s);sceneryBuilt=true;}if(gifts.length===0)buildGifts();}
+function buildWorld(s){if(!sceneryBuilt){if(window.CoastalArt)window.CoastalArt.build(s);else buildScenery(s);sceneryBuilt=true;}if(gifts.length===0){if(window.CoastalArt)window.CoastalArt.buildMysteryCrates();else buildGifts();}}
 
 /* ---------------- results UI ---------------- */
 function showResults(order){
@@ -600,11 +605,21 @@ function fmt(t){if(!t)return'—';return Math.floor(t/60)+':'+(t%60).toFixed(1).
 
 /* ---------------- main loop ---------------- */
 function buildWorldGuard(){}
-let last=performance.now();
+let last=performance.now(),qualityAt=last,qualityFrames=0,qualityMs=0;
+let renderScale=Math.min(devicePixelRatio||1,innerWidth<760?1.35:1.7);
+let qualityCap=renderScale,qualityFloor=Math.min(.88,qualityCap);
 function frame(now){
   requestAnimationFrame(frame);
   NOW=now;
-  const dt=Math.min((now-last)/1000,.05);last=now;
+  const rawDt=(now-last)/1000,dt=Math.min(rawDt,.05);last=now;
+  qualityFrames++;qualityMs+=Math.min(rawDt,.08)*1000;
+  if(now-qualityAt>4000&&qualityFrames>60){
+    const avg=qualityMs/qualityFrames,old=renderScale;
+    if(avg>22&&renderScale>qualityFloor+.04)renderScale=Math.max(qualityFloor,renderScale*.88);
+    else if(avg<14&&renderScale<qualityCap-.04)renderScale=Math.min(qualityCap,renderScale*1.05);
+    if(Math.abs(old-renderScale)>.015){renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight,false);}
+    qualityAt=now;qualityFrames=0;qualityMs=0;
+  }
 
   // countdown / clock
   if(raceState==='countdown'){const rem=(countdownEnd-Date.now())/1000;
@@ -752,10 +767,11 @@ function updateAtmosphere(dt,now){
   sun.target.position.set(cars[mySlot]?cars[mySlot].x:0,0,cars[mySlot]?cars[mySlot].z:0);
   sky.position.copy(camera.position);
   const sp=camera.position;const a=Math.atan2(sun.position.z-sp.z,sun.position.x-sp.x);
-  sunGlow.position.set(sp.x+Math.cos(a)*500, 360, sp.z+Math.sin(a)*500);
+  sunGlow.position.set(sp.x+Math.cos(a)*500, 94, sp.z+Math.sin(a)*500);
   clouds.forEach(s=>{const o=s.userData.o;o.x+=dt*4;if(o.x>800)o.x=-800;s.position.set(camera.position.x+o.x,o.y,camera.position.z+o.z);});
   seaTex.offset.set((now*0.000004)%1,(now*0.000002)%1);
   foam.material.opacity=0.4+0.15*Math.sin(now*0.001);
+  if(window.CoastalArt)window.CoastalArt.update(dt,now);
 }
 
 /* ---------------- camera + HUD ---------------- */
@@ -806,11 +822,12 @@ function updateHUD(){
 }
 
 /* ---------------- resize ---------------- */
-function fit(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+function fit(){qualityCap=Math.min(devicePixelRatio||1,innerWidth<760?1.35:1.7);qualityFloor=Math.min(.88,qualityCap);renderScale=Math.min(renderScale||qualityCap,qualityCap);renderer.setPixelRatio(renderScale);renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
 addEventListener('resize',fit);fit();
 camera.position.set(0,38,-118);camera.lookAt(0,0,-115);
 
 /* ---------------- boot ---------------- */
+if(window.CoastalArt)window.CoastalArt.install();
 $('load').classList.add('hidden');
 connect();
 // offline fallback if server never connects
