@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Beach Buggy Online — 200%</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0c1d26; --cor:#ff5a1f; --gold:#ffd23f; --glass:rgba(8,24,32,.72);
+  --ok:#1fae5a; --blue:#2f7dff; --purple:#7a2fd6;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b1620;
+  font-family:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;color:#fff;
+  user-select:none;-webkit-user-select:none;touch-action:none;
+  -webkit-tap-highlight-color:transparent}
+canvas#c{display:block;width:100%;height:100%}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+.top{position:absolute;top:calc(env(safe-area-inset-top,0) + 8px);left:0;right:0;
+  display:flex;justify-content:space-between;align-items:flex-start;padding:0 12px;gap:8px}
+.chip{background:var(--glass);border:1px solid rgba(255,255,255,.14);border-radius:14px;
+  padding:4px 14px;font-weight:800;font-size:30px;line-height:1.15;white-space:nowrap;
+  backdrop-filter:blur(6px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.chip small{font-weight:600;font-size:16px;opacity:.85;letter-spacing:.5px}
+#pos{font-size:34px}
+#ctr{display:flex;flex-direction:column;align-items:center;gap:6px}
+#lap{font-size:26px}
+#time{font-size:20px;opacity:.9;background:var(--glass);border-radius:10px;padding:1px 10px}
+.bars{display:flex;flex-direction:column;align-items:center;gap:6px}
+#bar{width:min(46vw,230px);height:12px;border-radius:8px;background:rgba(0,0,0,.45);
+  border:1px solid rgba(255,255,255,.18);overflow:hidden;position:relative}
+#bar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#26a0ff,#7df9ff);
+  transition:width .08s linear}
+#bar.full i{background:linear-gradient(90deg,#ffd23f,#ff7a1f)}
+#itm{font-size:22px;background:var(--glass);border-radius:12px;padding:3px 16px;border:1px solid rgba(255,255,255,.18)}
+#map{position:absolute;top:calc(env(safe-area-inset-top,0) + 86px);right:12px;width:118px;height:118px;
+  border-radius:16px;background:var(--glass);border:1px solid rgba(255,255,255,.18);box-shadow:0 6px 20px rgba(0,0,0,.3)}
+#rank{position:absolute;top:calc(env(safe-area-inset-top,0) + 86px);left:12px;width:150px;
+  background:var(--glass);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:6px 8px;font-size:16px;font-weight:700}
+#rank .r{display:flex;justify-content:space-between;gap:6px;padding:1px 0;opacity:.92}
+#rank .r b{font-weight:800}
+#cd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:24vmin;color:var(--gold);text-shadow:0 6px 0 rgba(0,0,0,.35);
+  -webkit-text-stroke:2px rgba(0,0,0,.25);pointer-events:none}
+#toast{position:absolute;left:0;right:0;top:34%;text-align:center;font-weight:900;font-size:7vmin;
+  color:var(--gold);text-shadow:0 3px 0 rgba(0,0,0,.45);opacity:0;transition:opacity .25s}
+#speedlines{position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at center,transparent 48%,rgba(255,255,255,.0) 60%,rgba(120,200,255,.18) 100%);
+  transition:opacity .2s;mix-blend-mode:screen}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .12s}
+
+/* ---------- touch controls ---------- */
+#pad{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0) + 14px);
+  padding:0 16px;display:flex;justify-content:space-between;align-items:flex-end}
+#pad .g{display:flex;gap:14px;align-items:flex-end}
+.btn{pointer-events:auto;width:88px;height:88px;border-radius:50%;border:2px solid rgba(255,255,255,.7);
+  background:var(--glass);color:#fff;font:800 20px 'Barlow Condensed',system-ui,sans-serif;touch-action:none;
+  display:flex;align-items:center;justify-content:center;transition:transform .06s,background .1s;
+  box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.btn.big{width:116px;height:116px;font-size:26px}
+.btn.boost{background:linear-gradient(160deg,#0a6bd6,#1657ff);border-color:rgba(160,200,255,.8)}
+.btn.item{background:linear-gradient(160deg,#6a1fb0,#9a2fd6)}
+.btn.on{transform:scale(.9)}
+.btn.boost.on{background:linear-gradient(160deg,#ffd23f,#ff7a1f)}
+#tiltBtn{position:absolute;left:12px;top:calc(env(safe-area-inset-top,0) + 230px);
+  pointer-events:auto;background:var(--glass);border:1px solid rgba(255,255,255,.2);color:#fff;
+  border-radius:12px;padding:6px 12px;font:700 16px 'Barlow Condensed',system-ui;z-index:6}
+#gearBtn{position:absolute;right:12px;top:calc(env(safe-area-inset-top,0) + 214px);
+  pointer-events:auto;background:var(--glass);border:1px solid rgba(255,255,255,.2);color:#fff;
+  border-radius:12px;width:42px;height:42px;font-size:22px;z-index:6}
+@media (pointer:fine){ #pad,#tiltBtn{display:none} }
+
+/* ---------- overlays ---------- */
+.ov{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 30%,rgba(20,50,70,.55),rgba(6,16,24,.85));padding:18px;overflow:auto}
+.card{background:#fffaf0;color:var(--ink);border-radius:24px;padding:26px 26px 24px;max-width:460px;width:100%;
+  text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.5);border:3px solid #ffd23f}
+.card h1{margin:0 0 2px;font-size:46px;line-height:.95;font-weight:900;letter-spacing:.5px}
+.card .sub{margin:0 0 16px;font-size:19px;font-weight:600;opacity:.8}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+.seg{display:flex;gap:8px;justify-content:center;margin:6px 0 12px}
+.seg button{flex:1;min-width:120px;background:#eef1f4;border:2px solid #d7dde3;color:var(--ink);
+  border-radius:14px;padding:12px 8px;font:800 20px 'Barlow Condensed',system-ui;cursor:pointer}
+.seg button.sel{background:var(--cor);color:#fff;border-color:var(--cor)}
+.in{width:100%;background:#fff;border:2px solid #cfd6dc;border-radius:12px;padding:12px 14px;
+  font:700 20px 'Barlow Condensed',system-ui;color:var(--ink);margin:4px 0;text-align:center}
+.sw{display:flex;gap:10px;justify-content:center;margin:8px 0 4px;flex-wrap:wrap}
+.sw i{width:34px;height:34px;border-radius:50%;border:3px solid rgba(0,0,0,.15);cursor:pointer;display:inline-block}
+.sw i.sel{outline:3px solid var(--ink);outline-offset:2px}
+.players{display:flex;flex-direction:column;gap:6px;margin:12px 0;max-height:200px;overflow:auto}
+.pl{display:flex;align-items:center;gap:10px;background:#eef1f4;border-radius:12px;padding:8px 12px;font-weight:700;font-size:18px}
+.pl .dot{width:18px;height:18px;border-radius:50%;flex:none}
+.pl .nm{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl .tag{font-size:13px;background:var(--gold);color:var(--ink);border-radius:8px;padding:1px 8px;font-weight:800}
+.pl.bot{opacity:.65;font-style:italic}
+.cta{background:var(--cor);color:#fff;border:0;border-radius:16px;padding:14px 28px;margin-top:8px;
+  font:900 26px 'Barlow Condensed',system-ui;cursor:pointer;width:100%;box-shadow:0 8px 22px rgba(255,90,31,.4)}
+.cta.blue{background:var(--blue)}
+.cta.ghost{background:transparent;color:var(--ink);border:2px solid #cfd6dc;box-shadow:none;font-size:20px;padding:10px}
+.cta:disabled{opacity:.45;cursor:not-allowed}
+.msg{font-size:17px;font-weight:600;min-height:22px;margin-top:8px;color:#b3261e}
+.res{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.res .line{display:flex;align-items:center;gap:10px;background:#eef1f4;border-radius:12px;padding:10px 14px;font-weight:700;font-size:20px}
+.res .line .pos{font-size:22px;font-weight:900;width:34px}
+.res .line .dot{width:18px;height:18px;border-radius:50%}
+.res .line .nm{flex:1;text-align:left}
+.res .line .tm{font-weight:800;opacity:.85}
+.res .line.you{outline:3px solid var(--cor)}
+#load{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+  background:#0b1620;color:#fff;font:800 26px 'Barlow Condensed',system-ui;flex-direction:column;gap:14px}
+#load .ring{width:54px;height:54px;border:5px solid rgba(255,255,255,.2);border-top-color:var(--cor);
+  border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+.settings{text-align:left;font-size:17px;font-weight:600}
+.settings label{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}
+.settings input[type=range]{flex:1}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- in-game HUD -->
+<div id="hud" class="hidden">
+  <div class="top">
+    <div id="rank"></div>
+    <div class="chip" id="pos">1st</div>
+    <div id="ctr">
+      <div class="chip" id="lap">Lap 1/3</div>
+      <div id="time">0:00.0</div>
+    </div>
+    <div class="chip" id="spd">0 <small>km/h</small></div>
+  </div>
+  <div class="bars" style="position:absolute;top:calc(env(safe-area-inset-top,0) + 86px);left:50%;transform:translateX(-50%)">
+    <div id="bar"><i></i></div>
+    <div id="itm">No item</div>
+  </div>
+  <canvas id="map" width="236" height="236"></canvas>
+  <div id="cd" class="hidden"></div>
+  <div id="toast"></div>
+  <div id="speedlines"></div>
+  <div id="flash"></div>
+
+  <button id="tiltBtn">Tilt: off</button>
+  <button id="gearBtn">⚙</button>
+
+  <div id="pad">
+    <div class="g">
+      <div class="btn" data-k="brake">BRAKE</div>
+      <div class="btn boost" data-k="boost">BOOST</div>
+    </div>
+    <div class="g">
+      <div class="btn item" data-k="item">ITEM</div>
+      <div class="btn big" data-k="gas">GAS</div>
+    </div>
+  </div>
+</div>
+
+<!-- Lobby overlay -->
+<div id="lobby" class="ov">
+  <div class="card">
+    <h1>BEACH BUGGY ONLINE</h1>
+    <p class="sub">200% upgrade · 6-player championship · real-time multiplayer</p>
+
+    <input id="name" class="in" maxlength="16" placeholder="Your name" value="Racer">
+
+    <div class="sw" id="swatches"></div>
+
+    <div class="seg" id="modeSeg">
+      <button data-mode="dual" class="sel">Dual · 2P</button>
+      <button data-mode="championship">Championship · 6P</button>
+    </div>
+
+    <div class="players" id="players"></div>
+
+    <div class="row">
+      <input id="code" class="in" style="flex:1;min-width:120px" maxlength="5" placeholder="ROOM CODE">
+      <button class="cta blue" id="joinBtn" style="width:auto;padding:14px 18px">Join</button>
+    </div>
+
+    <button class="cta" id="createBtn">Create Room</button>
+    <button class="cta ghost" id="offlineBtn">Play Offline (vs bots)</button>
+    <div class="msg" id="lobbyMsg"></div>
+  </div>
+</div>
+
+<!-- Results overlay -->
+<div id="results" class="ov hidden">
+  <div class="card">
+    <h1 id="resTitle">RESULTS</h1>
+    <p class="sub" id="resSub"></p>
+    <div class="res" id="resList"></div>
+    <button class="cta" id="againBtn">Race Again</button>
+    <button class="cta ghost" id="lobbyBtn">Back to Lobby</button>
+  </div>
+</div>
+
+<!-- Settings -->
+<div id="settings" class="ov hidden">
+  <div class="card">
+    <h1>SETTINGS</h1>
+    <div class="settings">
+      <label>Steering sensitivity <input id="setSteer" type="range" min="0.4" max="2" step="0.05" value="1"></label>
+      <label>Throttle response <input id="setThrottle" type="range" min="0.4" max="2" step="0.05" value="1"></label>
+      <label>Invert tilt <input id="setInvert" type="checkbox"></label>
+      <label>Audio <input id="setAudio" type="checkbox" checked></label>
+      <label>Camera shake <input id="setShake" type="checkbox" checked></label>
+    </div>
+    <button class="cta" id="setClose">Done</button>
+  </div>
+</div>
+
+<div id="load"><div class="ring"></div><div>Loading engine…</div></div>
+
+<script src="three.min.js"></script>
+<script src="client.js"></script>
+</body>
+</html>
