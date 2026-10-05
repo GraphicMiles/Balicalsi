@@ -1,14 +1,22 @@
 {
-  "name": "beach-buggy-game",
+  "name": "beach-buggy-online",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Beach Buggy Online — 200% upgraded real-time multiplayer beach buggy racer (Three.js client + Node/WebSocket server).",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "game",
+    "multiplayer",
+    "websocket",
+    "threejs",
+    "racing"
+  ],
+  "license": "MIT",
   "dependencies": {
     "ws": "^8.18.0"
   }
