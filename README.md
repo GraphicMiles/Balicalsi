@@ -62,3 +62,18 @@ Settings (⚙): steering sensitivity, throttle response, invert tilt, audio, cam
 The server is plain Node (`server.js`) + static files in `public/`. Host it
 anywhere (e.g. a VM, Railway, Render, Fly) and point players at the public URL.
 The client auto-detects `ws://` or `wss://` from `location.host`.
+
+## Deploy to Render
+This repo includes a `render.yaml` Blueprint, so Render provisions the whole
+stack from the repo:
+
+1. Push to GitHub (already done).
+2. In the Render dashboard choose **New → Blueprint** and connect
+   `GraphicMiles/Balicalsi`, or run `render blueprint launch` with the
+   [Render CLI](https://render.com/docs/cli).
+3. Render runs `npm install`, then `node server.js` on the port it injects via
+   `PORT`. The app's WebSocket server (lobby + matches) is served over
+   `wss://` automatically — no extra config needed.
+
+Free-plan note: the service sleeps after ~15 min idle and wakes on the next
+request (first load takes a few seconds).

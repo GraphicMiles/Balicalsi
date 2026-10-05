@@ -1,0 +1,22 @@
+# Render Blueprint — Beach Buggy Online (Node + WebSocket)
+#
+# Deploy:
+#   1. Render Dashboard → New → Blueprint → connect this repo, OR
+#   2. CLI:  render blueprint launch   (with the Render CLI authenticated)
+#
+# The free plan spins the service down after ~15 min of inactivity and
+# wakes on the next request (first load may take a few seconds).
+services:
+  - type: web                       # HTTP + WebSocket on the same port
+    name: beach-buggy-online
+    runtime: node
+    plan: free
+    branch: main
+    region: oregon
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /
+    numInstances: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
