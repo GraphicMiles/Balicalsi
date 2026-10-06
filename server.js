@@ -1,9 +1,9 @@
 /* =========================================================================
-   Beach Buggy Online — multiplayer server
+   Kauaʻi Drive — multiplayer server
    - Static file server for /public
    - WebSocket relay + room/lobby/match orchestration
-   - Two modes: "dual" (2 players) and "championship" (6 players)
-   - Empty slots are filled by LOCAL bots on each client (server stays lean)
+   - Two modes: "dual" (Duo Sprint, 2 players) and "championship" (Island Cup, 6 players)
+   - Empty slots stay open (humans only); share the room code to fill them
    - The server is authoritative only for: lobby, countdown, finish order,
      and relaying each human's car state to the other humans.
    ========================================================================= */
@@ -71,6 +71,19 @@ function freeSlot(room) {
   return -1;
 }
 
+function dropFromRoom(room, me) {
+  // remove a player from a room whether they left voluntarily or dropped
+  room.players.delete(me.id);
+  if (room.players.size === 0) { rooms.delete(room.code); return; }
+  if (room.hostId === me.id) {
+    const next = [...room.players.values()].sort((a,b)=>a.slot-b.slot)[0];
+    room.hostId = next ? next.id : null;
+    if (next) broadcast(room, { type: 'host', slot: next.slot });
+  }
+  if (room.state === 'lobby') lobbyUpdate(room);
+  else broadcast(room, { type: 'left', slot: me.slot });
+}
+
 wss.on('connection', (ws) => {
   const id = nextId++;
   sockets.set(ws, { id, room: null, slot: -1 });
@@ -91,7 +104,7 @@ wss.on('connection', (ws) => {
       room.players.set(id, { id, ws, name: (m.name || 'Player').slice(0, 16), color: m.color || '#ff5a1f', slot, host: true });
       me.room = code; me.slot = slot;
       send(ws, { type: 'created', code, slot, you: id, seed: room.seed,
-                 mode, max, players: publicPlayers(room), host: id });
+                 mode, max, players: publicPlayers(room), host: id, now: Date.now() });
     }
 
     else if (m.type === 'join') {
@@ -103,7 +116,7 @@ wss.on('connection', (ws) => {
       room.players.set(id, { id, ws, name: (m.name || 'Player').slice(0, 16), color: m.color || '#1d4ed8', slot, host: false });
       me.room = room.code; me.slot = slot;
       send(ws, { type: 'joined', code: room.code, slot, you: id, seed: room.seed,
-                 mode: room.mode, max: room.max, players: publicPlayers(room), host: room.hostId });
+                 mode: room.mode, max: room.max, players: publicPlayers(room), host: room.hostId, now: Date.now() });
       lobbyUpdate(room);
     }
 
@@ -114,8 +127,10 @@ wss.on('connection', (ws) => {
       room.state = 'racing';
       room.startTime = Date.now() + 3800;     // ~3.8s countdown
       room.finishOrder = [];
+      room.endAt = 0;
+      for (const p of room.players.values()) { p.finTime = 0; p.lastProg = 0; }
       broadcast(room, { type: 'start', startTime: room.startTime, seed: room.seed, max: room.max,
-                        players: publicPlayers(room), mode: room.mode });
+                        players: publicPlayers(room), mode: room.mode, now: Date.now() });
     }
 
     else if (m.type === 'sync') {
@@ -147,6 +162,26 @@ wss.on('connection', (ws) => {
       broadcast(room, { type: 'chat', from: me.slot, name: (room.players.get(id)||{}).name, text: (''+m.text).slice(0,80) });
     }
 
+    else if (m.type === 'again') {
+      // host returns a finished race to the lobby for a rematch
+      const room = rooms.get(me.room);
+      if (!room || room.hostId !== id) return;
+      if (room.state !== 'finished' && room.state !== 'racing') return;
+      room.state = 'lobby';
+      room.finishOrder = [];
+      room.endAt = 0;
+      for (const p of room.players.values()) { p.finTime = 0; p.lastProg = 0; }
+      broadcast(room, { type: 'again' });
+      lobbyUpdate(room);
+    }
+
+    else if (m.type === 'leave') {
+      const room = rooms.get(me.room);
+      if (room) dropFromRoom(room, me);
+      me.room = null; me.slot = -1;
+      send(ws, { type: 'leftRoom' });
+    }
+
     else if (m.type === 'ping') {
       send(ws, { type: 'pong', t: m.t });
     }
@@ -156,39 +191,30 @@ wss.on('connection', (ws) => {
     const me = sockets.get(ws);
     if (!me) return;
     const room = rooms.get(me.room);
-    if (room) {
-      room.players.delete(me.id);
-      if (room.state === 'lobby') {
-        // reassign host if needed
-        if (room.hostId === me.id) {
-          const next = [...room.players.values()].sort((a,b)=>a.slot-b.slot)[0];
-          room.hostId = next ? next.id : null;
-        }
-        if (room.players.size === 0) { rooms.delete(room.code); }
-        else lobbyUpdate(room);
-      } else {
-        // mid-race: tell others this slot freed (becomes a local bot on their side)
-        broadcast(room, { type: 'left', slot: me.slot });
-        if (room.hostId === me.id) {
-          const next = [...room.players.values()].sort((a,b)=>a.slot-b.slot)[0];
-          if (next) { room.hostId = next.id; broadcast(room, { type: 'host', slot: next.slot }); }
-        }
-        if (room.players.size === 0) { rooms.delete(room.code); }
-      }
-    }
+    if (room) dropFromRoom(room, me);
     sockets.delete(ws);
   });
 });
 
 function maybeFinish(room) {
-  // Race ends shortly after the HOST finishes, or when everyone is done.
-  const host = room.players.get(room.hostId);
-  const allDone = [...room.players.values()].every(p => p.finTime);
-  if ((host && host.finTime) || allDone) {
-    if (room.state === 'racing') {
-      room.state = 'finished';
-      setTimeout(() => finalize(room), 1500);
-    }
+  // The race ends when everyone finishes, or 45s after the first finisher
+  // (latecomers are ranked by progress, like a race time limit). Solo
+  // finishes end immediately.
+  if (room.state !== 'racing') return;
+  const ps = [...room.players.values()];
+  if (ps.length && ps.every(p => p.finTime)) {
+    room.state = 'finished';
+    room.endAt = 0;
+    setTimeout(() => finalize(room), 1200);
+    return;
+  }
+  if (!room.endAt && ps.some(p => p.finTime)) {
+    room.endAt = Date.now() + 45000;
+    const code = room.code;
+    setTimeout(() => {
+      const r = rooms.get(code);
+      if (r && r.state === 'racing') { r.state = 'finished'; finalize(r); }
+    }, 45200);
   }
 }
 
@@ -207,21 +233,6 @@ function finalize(room) {
   })) });
 }
 
-// keep latest progress for DNF ranking
-wss.on('connection', () => {}); // (noop placeholder; progress stored below)
-
-// augment sync handler to store lastProg (patched by wrapping)
-const _on = wss.emit.bind(wss);
-// store progress inside the sync branch already runs; add a tiny hook:
-setInterval(() => {
-  for (const room of rooms.values()) {
-    if (room.state !== 'racing') continue;
-    for (const p of room.players.values()) {
-      if (p.lastProg !== undefined) { /* already */ }
-    }
-  }
-}, 4000);
-
 // heartbeat
 const interval = setInterval(() => {
   for (const ws of wss.clients) {
@@ -234,5 +245,5 @@ wss.on('connection', (ws) => { ws.isAlive = true; ws.on('pong', () => { ws.isAli
 wss.on('close', () => clearInterval(interval));
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Island Rally server running on http://0.0.0.0:${PORT}`);
+  console.log(`Kauaʻi Drive server running on http://0.0.0.0:${PORT}`);
 });
