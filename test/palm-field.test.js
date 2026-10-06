@@ -180,12 +180,18 @@ ok('every tier still has the nearest palm upgraded', (() => {
 setVeg(1);
 
 /* ================= 5. shadow policy ================= */
-section('5. shadows: hero only, and they follow the quality setting');
+section('5. shadows: hero + mid cast, the far pools do not, quality still gates them all');
 const castFlags = () => [0, 1, 2].map(k => field.poolOf(k).ims.every(m => m.castShadow));
 ok('hero pool casts', castFlags()[0] === true);
-ok('mid pool does not cast (45 m+, outside the +/-60 m shadow camera)', castFlags()[1] === false);
-ok('low pool does not cast', castFlags()[2] === false);
+ok('mid pool casts (45-90 m palms can still throw a visible shadow in the +/-60 m map)', castFlags()[1] === true);
+ok('low pool does not cast (its shadows are clipped away)', castFlags()[2] === false);
 ok('field does not cast (3600 instances x 80 tris of pure waste)', field.field.ims.every(m => !m.castShadow));
+ok('turning shadows off in the quality settings silences every pool', (() => {
+  env.qp.shadow = 0; field.applyQuality();
+  const all = [0, 1, 2].every(k => field.poolOf(k).ims.every(m => !m.castShadow)) && field.field.ims.every(m => !m.castShadow);
+  env.qp.shadow = 1; field.applyQuality();
+  return all;
+})());
 
 /* ================= 6. the inlined copy is the same code ================= */
 section('6. source of truth matches the game');

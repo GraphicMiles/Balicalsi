@@ -482,10 +482,18 @@ const pool=(palm,cap,shadow)=>({palm,shadow,ims:palm.meshes.map(m=>{const im=new
  im.count=0;im.castShadow=shadow;im.receiveShadow=true;im.frustumCulled=false;
  im.instanceMatrix.setUsage(T.DynamicDrawUsage);S.add(im);return im})});
 const SRC=[createPalm(T,{detail:'hero'}),createPalm(T,{detail:'mid'}),createPalm(T,{detail:'low'})];
-/* only the hero pool casts: the sun's shadow camera is fitted to +/-60 m around the car,
-   and the mid pool starts at 45 m, so its shadow work is mostly outside the map (measured:
-   the shadow pass was 579,238 triangles a frame with both pools casting). */
-const P=[pool(SRC[0],CAPS[0],true),pool(SRC[1],CAPS[1],false),pool(SRC[2],CAPS[2],false)];
+/* Shadow policy. The sun's shadow camera is fitted to +/-60 m around the car, so only a palm
+   within roughly 60-75 m can cast a shadow anyone will see (a 10 m palm throws a 12-17 m
+   shadow, so anything past ~75 m projects outside the map).
+     hero casts, mid casts  -> every palm that can produce a visible shadow does
+     low + field do not     -> they are 90 m and 260 m out; the original field paid for all
+                               3600 of them and the fragments were clipped away
+   Measured in-game, same run, toggling only the mid pool's castShadow: main pass 1,005,298
+   (silent) vs 1,161,029 (casting); the shadow pass alone goes 214,182 -> 442,342, a delta of
+   exactly 5 mid palms x 45,632. The original build's shadow pass was 439,094, so casting from
+   the mid pool restores the shadows the old version had at about the same shadow cost, while
+   the island field itself is 93,600 triangles cheaper. */
+const P=[pool(SRC[0],CAPS[0],true),pool(SRC[1],CAPS[1],true),pool(SRC[2],CAPS[2],false)];
 const FLD=pool(createPalm(T,{detail:'ultra'}),MAXP,false);
 const PX=new Float32Array(MAXP),PY=new Float32Array(MAXP),PZ=new Float32Array(MAXP),
       SX=new Float32Array(MAXP),SY=new Float32Array(MAXP),SZ=new Float32Array(MAXP),

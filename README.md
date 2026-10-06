@@ -152,18 +152,20 @@ pools are rebuilt only after the car has moved 10 m. Each upgraded palm keeps it
 at the same spot scaled to 0.93, so the cheap copy hides inside the detail copy and an LOD
 swap cannot open a gap.
 
-Measured with `npm run probe:scene` and `node test/perf-probe.js` against the build this
-replaces (the 3600-strong cylinder-and-quad version):
+Measured in-game with `npm run probe:scene` against the build this replaces (the 3600-strong
+cylinder-and-quad version):
 
 | | before | after |
 |---|---|---|
-| forward pass | 762,389 tris / 138 calls | 1,161,010 tris / 150 calls |
-| shadow pass | 439,094 tris / 113 calls | 214,182 tris / 116 calls |
-| island palm field | 381,600 tris | 288,000 tris |
+| main render pass (includes the shadow pass) | 762,389 tris / 138 calls | 1,160,991 tris / 147 calls |
+| — of which the shadow pass | 439,094 tris / 113 calls | 442,342 tris / 121 calls |
+| island palm field (all 3600 palms) | 381,600 tris | 288,000 tris |
 
-Only the hero pool casts shadows: the sun's shadow camera covers ±60 m around the car, so the
-mid pool (45 m+), the low pool and the field were paying for shadow work that could not be
-seen. Switching to `LOW` quality thins the field and the pools together.
+The honest reading: the shadow pass costs about what it did before (the same palms cast, at
+higher detail, and the low/field pools no longer cast at all), the island-wide field is
+93,600 triangles cheaper than the quads it replaces, and the main pass carries roughly 52%
+more load on `HIGH` — that is the price of the detail pools, and it is concentrated on the
+handful of hero/mid palms near the car. `LOW` brings the same frame back down to 872,069.
 
 The palms are hard-surface geometry with vertex colours, not alpha-tested cards, so the
 default depth material is already correct for the shadow pass and nothing needs
