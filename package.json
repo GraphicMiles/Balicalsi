@@ -1,14 +1,17 @@
 {
   "name": "island-rally",
   "version": "1.0.0",
-  "description": "Island Rally — polished stylized coastal arcade racer with real-time multiplayer.",
+  "description": "Island Rally \u2014 polished stylized coastal arcade racer with real-time multiplayer.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test": "node test/mp-flow.test.js",
     "test:palm": "node test/palm.test.js",
     "inline-palm": "node tools/inline-palm.js",
-    "inline-palm:check": "node tools/inline-palm.js --check"
+    "inline-palm:check": "node tools/inline-palm.js --check",
+    "test:assets": "node test/palm.test.js && node test/palm-field.test.js && node tools/check-html.js && node tools/inline-palm.js --check",
+    "test:shot": "node test/palm-shot.js",
+    "probe:scene": "node test/scene-probe.js"
   },
   "engines": {
     "node": ">=18"

@@ -160,7 +160,7 @@ let qMode=0;
 function applyMode(){const md=QMODES[qMode];autoRes=md[1]?0:1;qTier=md[1]||'high';qp=QF[qTier];
  R.shadowMap.enabled=!!qp.shadow;sunL.castShadow=!!qp.shadow;sunL.shadow.mapSize.set(qp.map,qp.map);
  if(sunL.shadow.map){sunL.shadow.map.dispose();sunL.shadow.map=null}
- [trV,crV].forEach(m=>m.count=Math.max(1,Math.round(m.userData.total*qp.veg)));
+ palmField.applyQuality();
  pScale=1;ftAvg=16.7;fastT=0;resCd=0;applyRes()}
 function cycleQuality(){qMode=(qMode+1)%QMODES.length;applyMode();const md=QMODES[qMode];
  note('Quality: '+(qMode?md[0]+'  (fixed render scale)':'AUTO  (adaptive): '+qTier.toUpperCase()))}
@@ -367,64 +367,174 @@ const W=[];[[1.36,-.81],[1.36,.81],[-1.36,-.83],[-1.36,.83]].forEach(([x,z])=>{c
 const hl=[-1,1].map(z=>{const l=new T.SpotLight(0xfff2d8,0,90,.5,.6);l.position.set(2.3,.8,z*.6);l.target.position.set(30,0,z*.6);cg.add(l,l.target);return l});
 /* colliders + vegetation + archaeology */
 const OB=new Map(),ob=(x,z,r)=>{const k=((x/24+250)|0)*1000+((z/24+250)|0);(OB.get(k)||OB.set(k,[]).get(k)).push({x,z,r})};
-/* ---- palm frond texture (RGBA, alpha-tested) : a serrated feather leaf ---- */
-const frondTex=(()=>{const W=128,H=64,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
- g.clearRect(0,0,W,H);
- for(const dir of [-1,1]){for(let i=0;i<56;i++){const t=(i+.5)/56,x=3+t*122;
-   const prof=Math.sin(Math.PI*Math.pow(t,.78));            /* 0 at base, widest at ~40%, 0 at tip */
-   const L=(H/2-2.2)*prof*(0.82+hs(i*1.7,dir+5)*0.34);
-   if(L<1.1)continue;
-   const w=(1.5+1.0*(1-t))*(0.55+0.45*prof);
-   const ang=1.30-Math.pow(t,1.35)*0.88;                    /* steep near the base, swept toward the tip */
-   g.save();g.translate(x,H/2);g.rotate(dir*ang);
-   const lg=g.createLinearGradient(0,0,0,dir*L);lg.addColorStop(0,'#2b7223');lg.addColorStop(.6,'#46a536');lg.addColorStop(1,'#9ad06b');
-   g.fillStyle=lg;g.beginPath();g.moveTo(-w,0);g.lineTo(w,0);g.lineTo(w*.22,dir*L);g.lineTo(-w*.22,dir*L);g.closePath();g.fill();g.restore()}}
- g.strokeStyle='#255c1c';g.lineWidth=2.6;g.beginPath();g.moveTo(2,H/2);g.lineTo(126,H/2);g.stroke();
- g.strokeStyle='rgba(255,255,255,.12)';g.lineWidth=1;g.beginPath();g.moveTo(2,H/2-1);g.lineTo(126,H/2-1);g.stroke();
- const t=new T.CanvasTexture(c);t.anisotropy=8;t.encoding=T.sRGBEncoding;t.minFilter=T.LinearMipmapLinearFilter;return t})();
-/* ---- bark ---- */
-const barkTex=(()=>{const W=32,H=96,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
- g.fillStyle='#6a5238';g.fillRect(0,0,W,H);
- for(let i=0;i<26;i++){const y=i*3.8+hs(i,7)*2;g.fillStyle=`rgba(${44+hs(i,3)*36|0},${32+hs(i,5)*26|0},${20+hs(i,9)*20|0},${.35+hs(i,2)*.4})`;g.fillRect(0,y,W,1.6+hs(i,1)*2.2)}
- for(let i=0;i<70;i++){g.fillStyle=`rgba(255,240,215,${.05+hs(i,4)*.09})`;g.fillRect(hs(i,11)*W,hs(i,13)*H,1.3,1.3)}
- const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(1,3);t.anisotropy=8;t.encoding=T.sRGBEncoding;return t})();
-/* ---- wind sway: shared uniform, applied to the fronds AND to their shadow pass ---- */
-const SWAY={t:{value:0}};
-const swayPatch=sh=>{sh.uniforms.SW=SWAY.t;sh.vertexShader='uniform float SW;\n'+sh.vertexShader.replace('#include <begin_vertex>',
- `#include <begin_vertex>
- #ifdef USE_INSTANCING
-  vec3 io=instanceMatrix[3].xyz;
-  float ph=io.x*0.23+io.z*0.17;
-  float amp=length(transformed.xz)*0.045;
-  transformed.x+=sin(SW*1.7+ph)*amp;
-  transformed.z+=cos(SW*1.35+ph*1.3)*amp;
-  transformed.y+=sin(SW*2.3+ph)*amp*0.4;
- #endif`);return sh};
-/* ---- canopy: 9 rolled, drooping frond quads instead of the old 7 flat sprouts ---- */
-const frondMat=new T.MeshStandardMaterial({map:frondTex,alphaTest:.34,side:T.DoubleSide,roughness:.72,metalness:0});
-frondMat.onBeforeCompile=swayPatch;
-const frondDepth=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,map:frondTex,alphaTest:.34,side:T.DoubleSide});
-frondDepth.onBeforeCompile=swayPatch;
-const pg=new T.CylinderGeometry(.17,.31,9,10).translate(0,4.5,0),cgm=(()=>{
- const P=[],U=[],I=[],v=new T.Vector3(),mA=new T.Matrix4(),mB=new T.Matrix4(),NL=11,SEG=3,base=new T.Vector3(0,8.9,0);
- for(let k=0;k<NL;k++){
-  const a=k/NL*6.2832+(k%3)*.17,len=4.6+hs(k,21)*2.4,droop=.30+hs(k,22)*.34,
-        roll=((k%2)?1:-1)*(.3+hs(k,23)*.5),hw=(.85+hs(k,25)*.45)*(1-.2*hs(k,26)),off0=P.length/3;
-  mA.makeRotationX(roll);mB.makeRotationY(a);
-  for(let seg=0;seg<=SEG;seg++){const u=seg/SEG,
-    x=len*u,y=-droop*len*u*u,                              /* parabolic droop: the leaf arches over */
-    w=hw*Math.pow(Math.sin(Math.PI*Math.pow(u,.62)),.85),zc=Math.sin(u*1.7)*hw*.1;
-   for(const sz of [-1,1]){v.set(x,y,zc+sz*w).applyMatrix4(mA).applyMatrix4(mB).add(base);P.push(v.x,v.y,v.z);U.push(u,sz>0?1:0)}}
-  for(let seg=0;seg<SEG;seg++){const q=off0+seg*2;I.push(q,q+1,q+2,q+1,q+3,q+2)}}
- const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('uv',new T.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();return g})();
-const trV=new T.InstancedMesh(pg,M({map:barkTex,color:0x8d7355,roughness:.95}),3600),
-      crV=new T.InstancedMesh(cgm,frondMat,3600);
-/* alpha-tested shadows for the fronds (the default depth material ignores the leaf silhouette) */
-crV.customDepthMaterial=frondDepth;
-{const TN=3600,tr=trV,cr2=crV,o=new T.Object3D();let n=0;
+/* ==== PALM-TREE:BEGIN ==== */
+function createPalm(T,opts){opts=opts||{};const PI=Math.PI,cl=(v,a,b)=>Math.max(a,Math.min(b,v)),lp=(a,b,t)=>a+(b-a)*t;
+const hs=(x,z)=>{const s=Math.sin(x*127.1+z*311.7)*43758.5453;return s-Math.floor(s)};
+const vn=(x,z)=>{const i=Math.floor(x),j=Math.floor(z),u=x-i,v=z-j,a=u*u*(3-2*u),b=v*v*(3-2*v);return lp(lp(hs(i,j),hs(i+1,j),a),lp(hs(i,j+1),hs(i+1,j+1),a),b)};
+const fb=(x,z)=>vn(x,z)*.5+vn(x*2.1+5,z*2.1)*.25+vn(x*4.3,z*4.3+9)*.125;
+const V3=(x,y,z)=>new T.Vector3(x,y,z);
+/* ---------- detail presets: every count is a named constant so variants are derived, not retyped ---------- */
+/* leafW widens each leaflet as the leaflet count drops. A frond has to read as a solid
+   blade at distance, and with fewer leaflets the gaps between them exceed the blade
+   width, which turns the crown into a see-through wire brush. Widening costs no
+   triangles, so the cheap LODs keep a readable silhouette. */
+const DET={
+ hero:{trunkRings:240,trunkSides:56,fronds:27,rachSeg:44,leaflets:105,leafRows:5,leafW:1.0,roots:44,rootSeg:14,rootSides:8,nuts:16,nutRings:18,nutSides:26,blades:0},
+ mid :{trunkRings:140,trunkSides:32,fronds:15,rachSeg:32,leaflets:56, leafRows:5,leafW:2.0,roots:24,rootSeg:10,rootSides:6,nuts:8, nutRings:12,nutSides:16,blades:0},
+ low :{trunkRings:40, trunkSides:12,fronds:9, rachSeg:12,leaflets:22, leafRows:3,leafW:4.5,roots:12,rootSeg:6, rootSides:5,nuts:5, nutRings:10,nutSides:10,blades:0},
+ ultra:{trunkRings:4,  trunkSides:6, fronds:8, rachSeg:2, leaflets:1,  leafRows:1,leafW:1.0,roots:0, rootSeg:2, rootSides:3,nuts:0, nutRings:4, nutSides:4, blades:1}};
+const DD=DET[opts.detail]||DET.hero,dv=(k)=>opts[k]!==undefined?opts[k]:DD[k];
+const NR=dv('trunkRings'),NS=dv('trunkSides'),NF=dv('fronds'),N=dv('rachSeg'),NL=dv('leaflets'),RW=dv('leafRows'),
+      NROOT=dv('roots'),RSEG=dv('rootSeg'),RSIDE=dv('rootSides'),NNUT=dv('nuts'),NRING=dv('nutRings'),NSID=dv('nutSides'),LW=dv('leafW'),BLADE=dv('blades');
+const root=new T.Group();
+const U={t:{value:0},k:{value:1}};let tris=0;const meshes=[];
+/* geometry builder: positions, colours, wind weight, wind phase */
+const G=()=>({p:[],c:[],w:[],h:[],i:[],n:0}),V=(g,x,y,z,r,gg,b,w,h)=>{g.p.push(x,y,z);g.c.push(r,gg,b);g.w.push(w||0);g.h.push(h||0);return g.n++};
+function mesh(g,mat,wind){if(!g.i.length)return null;const o=new T.BufferGeometry();o.setAttribute('position',new T.Float32BufferAttribute(g.p,3));o.setAttribute('color',new T.Float32BufferAttribute(g.c,3));o.setAttribute('aW',new T.Float32BufferAttribute(g.w,1));o.setAttribute('aP',new T.Float32BufferAttribute(g.h,1));o.setIndex(g.i);o.computeVertexNormals();mat.vertexColors=true;mat.side=T.DoubleSide;
+ if(wind)mat.onBeforeCompile=s=>{s.uniforms.uT=U.t;s.uniforms.uK=U.k;s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float aW,aP;uniform float uT,uK;').replace('#include <begin_vertex>','#include <begin_vertex>\nfloat q=aP*1.7;transformed+=vec3(sin(uT*1.4+q+position.x*.6),sin(uT*2.3+q*2.+position.z)*.35,cos(uT*1.1+q+position.z*.6))*aW*.15*uK;')};
+ const m=new T.Mesh(o,mat);m.castShadow=m.receiveShadow=true;tris+=g.i.length/3;root.add(m);meshes.push(m);return m}
+/* generic tapered tube along a polyline */
+function tube(g,pts,rf,ns,col,wf,ph){const b0=g.n,L=pts.length-1;pts.forEach((p,i)=>{const t=pts[Math.min(i+1,L)].clone().sub(pts[Math.max(i-1,0)]).normalize(),ref=Math.abs(t.y)>.9?V3(1,0,0):V3(0,1,0),a=new T.Vector3().crossVectors(t,ref).normalize(),b=new T.Vector3().crossVectors(t,a),r=rf(i/L);for(let k=0;k<ns;k++){const th=k/ns*2*PI,q=p.clone().addScaledVector(a,Math.cos(th)*r).addScaledVector(b,Math.sin(th)*r),s=.82+.3*hs(i,k);V(g,q.x,q.y,q.z,col[0]*s,col[1]*s,col[2]*s,wf?wf(i/L):0,ph||0)}});
+ for(let i=0;i<L;i++)for(let k=0;k<ns;k++){const a=b0+i*ns+k,b=b0+i*ns+(k+1)%ns;g.i.push(a,a+ns,b,b,a+ns,b+ns)}}
+/* ---------- TRUNK: leaning S-curve, flared root bulb, crescent leaf scars, vertical cracks ---------- */
+const H=9.6,cen=u=>V3(Math.pow(u,1.7)*3.2+.14*Math.sin(u*9),u*H,Math.sin(u*3.2)*.55+u*u*.5);
+{const g=G();
+ for(let i=0;i<=NR;i++){const u=i/NR,c=cen(u),t=cen(Math.min(1,u+.004)).sub(cen(Math.max(0,u-.004))).normalize(),a=V3(0,0,1).sub(t.clone().multiplyScalar(t.z)).normalize(),b=new T.Vector3().crossVectors(t,a),y=u*H,
+  base=.145+.04*(1-u)+.34*Math.exp(-y*2.3)+.05*Math.exp(-Math.pow((y-1.1)/.6,2)),f=y/.118,fr=f-Math.floor(f),gr=Math.min(fr,1-fr);
+  for(let k=0;k<NS;k++){const th=k/NS*2*PI,ct=Math.cos(th),st=Math.sin(th),
+   crescent=.55+.45*Math.cos(th-1.4*Math.sin(f*.9)),scar=.017*Math.exp(-Math.pow(gr/.1,2))*crescent,
+   crack=Math.exp(-y*.7)*.03*Math.pow(vn(ct*3+y*.5,st*3+y*.9),3),
+   rough=.007*fb(ct*5+3,st*5+y*4),r=base-scar-crack+rough;
+   const sh=(.78+.5*fb(ct*2+y*.6,st*2+4))*(scar>.007?.72:1)*(1-.3*Math.exp(-y*.9)*vn(ct*4,y*6)),
+   p=c.clone().addScaledVector(a,ct*r).addScaledVector(b,st*r);
+   V(g,p.x,p.y,p.z,.56*sh,.5*sh,.43*sh,0,0)}}
+ for(let i=0;i<NR;i++)for(let k=0;k<NS;k++){const a=i*NS+k,b=i*NS+(k+1)%NS;g.i.push(a,a+NS,b,b,a+NS,b+NS)}
+ mesh(g,new T.MeshStandardMaterial({roughness:.92,metalness:0}),false)}
+/* ---------- ROOT MASS ---------- */
+{const g=G();for(let n=0;n<NROOT;n++){const ps=n*2.4+hs(n,1)*.8,ln=.7+hs(n,2)*1.3,pts=[];for(let i=0;i<=RSEG;i++){const s=i/RSEG,rr=.24+s*ln,y=.5*Math.pow(1-s,1.6)-.1*s;pts.push(V3(Math.cos(ps+s*.5*hs(n,3))*rr,y+.02,Math.sin(ps+s*.5*hs(n,3))*rr))}
+ tube(g,pts,s=>.055*(1-s*.75)+.01,RSIDE,[.38+.1*hs(n,4),.28,.2],null)}
+ mesh(g,new T.MeshStandardMaterial({roughness:1}),false)}
+/* ---------- CROWN: fronds, each rachis + 2x leaflets ---------- */
+const crown=cen(1).add(V3(0,.06,0));
+{const g=G(),rg=G();
+ if(BLADE){/* ultra: one folded blade per frond instead of leaflet strips (4 tris a frond) */
+  for(let f=0;f<NF;f++){const a=NF>1?f/(NF-1):0,ph=f*2.39996+hs(f,1)*.5,dir=V3(Math.cos(ph),0,Math.sin(ph)),sd=V3(-Math.sin(ph),0,Math.cos(ph)),L=(4.3+hs(f,2)*.9)*(.88+.12*a),p0=lp(-.3,1.3,Math.pow(a,1.25))+(hs(f,3)-.5)*.2,bend=lp(1.7,.45,a),dry=Math.pow(1-a,3),pts=[];
+   let pos=crown.clone().addScaledVector(dir,.12);const ds=L/N;
+   for(let i=0;i<=N;i++){pts.push(pos.clone());const s=i/N,th=p0-bend*s*s;pos.addScaledVector(dir,Math.cos(th)*ds).addScaledVector(V3(0,1,0),Math.sin(th)*ds)}
+   const b0=g.n;
+   for(let i=0;i<=N;i++){const s=i/N,p=pts[i],t=(i<N?pts[i+1].clone().sub(p):p.clone().sub(pts[i-1])).normalize(),
+    up=new T.Vector3().crossVectors(sd,t).normalize(),w=.30+.26*Math.sin(PI*Math.pow(Math.max(s,.02),.8)),
+    k0=Math.min(1,dry*(.35+.65*s)+(s>.85?.25:0)),jr=.85+.3*hs(f*3+i,f);
+    for(const sg of[-1,1]){const q=p.clone().addScaledVector(sd,w*sg).addScaledVector(up,.14*w*sg);
+     V(g,q.x,q.y,q.z,lp(.10,.5,k0)*jr,lp(.24,.45,k0)*jr,lp(.05,.2,k0)*jr,(.25+.75*s)*.9,f*.9+i*.02)}}
+   for(let i=0;i<N;i++){const q=b0+i*2;g.i.push(q,q+2,q+1,q+1,q+2,q+3)}}
+  mesh(g,new T.MeshStandardMaterial({roughness:.48,emissive:0x1d3a0c,emissiveIntensity:.3}),true);
+ }else{
+ for(let f=0;f<NF;f++){const a=NF>1?f/(NF-1):0,ph=f*2.39996+hs(f,1)*.5,dir=V3(Math.cos(ph),0,Math.sin(ph)),sd=V3(-Math.sin(ph),0,Math.cos(ph)),L=(4.3+hs(f,2)*.9)*(.88+.12*a),p0=lp(-.3,1.3,Math.pow(a,1.25))+(hs(f,3)-.5)*.2,bend=lp(1.7,.45,a),dry=Math.pow(1-a,3),pts=[];
+  let pos=crown.clone().addScaledVector(dir,.12);const ds=L/N;
+  for(let i=0;i<=N;i++){pts.push(pos.clone());const s=i/N,th=p0-bend*s*s;pos.addScaledVector(dir,Math.cos(th)*ds).addScaledVector(V3(0,1,0),Math.sin(th)*ds)}
+  tube(rg,pts,s=>.05*(1-s)+.009,Math.max(4,Math.round(NS/9)),[lp(.33,.46,dry),lp(.42,.35,dry),lp(.14,.16,dry)],s=>s*.8,f);
+  const at=s=>{const x=s*N,i=Math.min(N-1,x|0);return pts[i].clone().lerp(pts[i+1],x-i)},tn=s=>{const x=s*N,i=Math.min(N-1,x|0);return pts[i+1].clone().sub(pts[i]).normalize()};
+  for(let j=0;j<NL;j++){const s=.21+.78*j/(NL-1),p=at(s),t=tn(s),up=new T.Vector3().crossVectors(sd,t).normalize(),tw=s*s*1.25,ct=Math.cos(tw),st=Math.sin(tw),
+   sdT=sd.clone().multiplyScalar(ct).addScaledVector(up,st),upT=up.clone().multiplyScalar(ct).addScaledVector(sd,-st),prof=Math.pow(Math.sin(PI*cl((s-.16)/.88,0,1)),.7);
+   for(const sg of[-1,1]){const sw=lp(.62,.3,s)+(hs(j,f+sg)-.5)*.16,d=sdT.clone().multiplyScalar(sg*Math.cos(sw)).addScaledVector(t,Math.sin(sw)).addScaledVector(upT,-.4).normalize(),ln=(.1+1.0*prof)*(.9+.2*hs(j*sg,f)),W=.03*(.85+.3*hs(j,f*3))*LW,b0=g.n;
+    for(let r=0;r<RW;r++){const rho=r/(RW-1),c=p.clone().addScaledVector(d,ln*rho).addScaledVector(V3(0,-1,0),ln*.24*rho*rho),w=Math.max(W*Math.pow(1-rho,.7)*Math.min(1,.5+rho*5),W*.05),
+     dk=lp(.07,.3,rho),gc=.2+.28*rho,k0=Math.min(1,dry*(.35+.65*rho)+(rho>.85?.25:0)),jr=.85+.3*hs(j,f*7+r);
+     for(let e=-1;e<=1;e++){const q=c.clone().addScaledVector(t,e*w).addScaledVector(upT,Math.abs(e)*w*.7),m=e?1:.78;
+      V(g,q.x,q.y,q.z,lp(dk,.55,k0)*m*jr,lp(gc,.47,k0)*m*jr,lp(.05+.06*rho,.2,k0)*m*jr,(.2+.8*s)*(.5+.5*rho)*.9,f*.9+j*.02)}}
+    for(let r=0;r<RW-1;r++)for(let e=0;e<2;e++){const q=b0+r*3+e;g.i.push(q,q+1,q+3,q+1,q+4,q+3)}}}}
+ mesh(g,new T.MeshStandardMaterial({roughness:.48,emissive:0x1d3a0c,emissiveIntensity:.3}),true);mesh(rg,new T.MeshStandardMaterial({roughness:.7}),true)}}
+/* ---------- COCONUTS ---------- */
+{const g=G();for(let n=0;n<NNUT;n++){const an=n*2.4+hs(n,5),rr=.18+.17*hs(n,6),cx=crown.x+Math.cos(an)*rr,cz=crown.z+Math.sin(an)*rr,cy=crown.y-.3-.14*hs(n,7),sz=.9+.25*hs(n,8),br=hs(n,9)>.7?1:0,b0=g.n;
+ for(let i=0;i<=NRING;i++){const v=i/NRING*PI;for(let k=0;k<NSID;k++){const th=k/NSID*2*PI,rad=Math.max(Math.sin(v),.015)*(1+.07*Math.cos(3*th))*.135*sz,sh=.85+.3*hs(i,k+n);V(g,cx+Math.cos(th)*rad,cy+Math.cos(v)*.2*sz,cz+Math.sin(th)*rad,lp(.33,.42,br)*sh,lp(.42,.3,br)*sh,lp(.15,.16,br)*sh,.1,n)}}
+ for(let i=0;i<NRING;i++)for(let k=0;k<NSID;k++){const a=b0+i*NSID+k,b=b0+i*NSID+(k+1)%NSID;g.i.push(a,a+NSID,b,b,a+NSID,b+NSID)}}
+ mesh(g,new T.MeshStandardMaterial({roughness:.65}),true)}
+root.scale.setScalar(opts.scale||1);
+return{object:root,update:dt=>{U.t.value+=dt},setWind:k=>{U.k.value=k},meshes,triangles:tris,height:H,crown:crown.clone(),dispose(){meshes.forEach(m=>{m.geometry.dispose();m.material.dispose()})}}}
+if(typeof module!=='undefined')module.exports={createPalm};
+if(typeof window!=='undefined')window.createPalm=createPalm;
+/* ==== PALM-TREE:END ==== */
+/* ==== PALM-FIELD:BEGIN ==== */
+/* ---- palm field: one detail pool per LOD over a static whole-island field.
+
+   Was: 3600 identical palm instances (40-tri cylinder trunk + a 66-tri crown of 11
+   alpha-tested quads = 381,600 triangles a frame), all of them also rendered into the
+   shadow map even though the sun's shadow camera only covers +/-60 m around the car.
+
+   Now: every palm on the island is the generated coconut palm, at four detail levels.
+   The field itself is the 80-tri ultra LOD, written once, and each of the three detail
+   pools draws the nearest palms on top of it. The ultra twin is scaled to 0.93 so it
+   sits inside its detail copy rather than poking through it.
+
+     rank/within   pool     mesh      tris each   how many
+     nearest,45 m  hero     hero        156,688      1
+     next,within 90m  mid   mid          45,632      5
+     next,within 260m low   low           6,712     16
+     everything    field    ultra            80    3600
+
+   The detail pools are rebuilt only once the car has moved 10 m, so a parked or slowly
+   rolling car costs nothing per frame. Shadows: only the hero and mid pools cast (they
+   are the only ones close enough to reach the +/-60 m shadow frustum); the field and
+   the low pool used to pay for shadow work that could never be seen. ---- */
+const palmField=(()=>{
+const CAPS=[1,5,16],BAND=[45,90,260],SHRINK=.93,MAXP=3600;
+const pool=(palm,cap,shadow)=>({palm,shadow,ims:palm.meshes.map(m=>{const im=new T.InstancedMesh(m.geometry,m.material,cap);
+ im.count=0;im.castShadow=shadow;im.receiveShadow=true;im.frustumCulled=false;
+ im.instanceMatrix.setUsage(T.DynamicDrawUsage);S.add(im);return im})});
+const SRC=[createPalm(T,{detail:'hero'}),createPalm(T,{detail:'mid'}),createPalm(T,{detail:'low'})];
+/* only the hero pool casts: the sun's shadow camera is fitted to +/-60 m around the car,
+   and the mid pool starts at 45 m, so its shadow work is mostly outside the map (measured:
+   the shadow pass was 579,238 triangles a frame with both pools casting). */
+const P=[pool(SRC[0],CAPS[0],true),pool(SRC[1],CAPS[1],false),pool(SRC[2],CAPS[2],false)];
+const FLD=pool(createPalm(T,{detail:'ultra'}),MAXP,false);
+const PX=new Float32Array(MAXP),PY=new Float32Array(MAXP),PZ=new Float32Array(MAXP),
+      SX=new Float32Array(MAXP),SY=new Float32Array(MAXP),SZ=new Float32Array(MAXP),
+      RY=new Float32Array(MAXP),RZ=new Float32Array(MAXP);
+/* One candidate list for the whole detail range, sorted by distance and then sliced by
+   rank. Radius bands alone are fragile: palms grow 12-20 m off the road, so a band edge
+   can fall in a gap and leave the nearest palm unupgraded. Ranking cannot miss.
+   PD is keyed by PALM index and SELI holds palm indices, so the comparator and the
+   distance test both read the same index space. (Keying one array by palm index and
+   filling the other positionally sorts unrelated palms - the bug this replaced.) */
+const SELI=new Int32Array(4096),PD=new Float32Array(MAXP);
+const dmy=new T.Object3D();
+let PN=0,lx=1e9,lz=1e9,caps=CAPS.slice();
+const setI=(pl,slot,i,shrink)=>{dmy.position.set(PX[i],PY[i],PZ[i]);dmy.rotation.set(0,RY[i],RZ[i]);
+ dmy.scale.set(SX[i]*shrink,SY[i]*shrink,SZ[i]*shrink);dmy.updateMatrix();
+ for(const im of pl.ims)im.setMatrixAt(slot,dmy.matrix)};
+function add(x,y,z,sx,sy,sz,yaw,tilt){if(PN>=MAXP)return;
+ PX[PN]=x;PY[PN]=y;PZ[PN]=z;SX[PN]=sx;SY[PN]=sy;SZ[PN]=sz;RY[PN]=yaw;RZ[PN]=tilt;
+ setI(FLD,PN,PN,SHRINK);PN++}
+function commit(){const n=Math.max(1,Math.round(PN*qp.veg));
+ for(const im of FLD.ims){im.count=n;im.instanceMatrix.needsUpdate=true}lx=1e9}
+function rebuild(cx,cz){
+ const far=BAND[2]*BAND[2];let m=0;
+ for(let i=0;i<PN;i++){const dx=PX[i]-cx,dz=PZ[i]-cz,d=dx*dx+dz*dz;
+  if(d<far&&m<SELI.length){PD[i]=d;SELI[m++]=i}}
+ if(m>1)SELI.subarray(0,m).sort((a,b)=>PD[a]-PD[b]);
+ let r=0;
+ for(let k=0;k<3;k++){const pl=P[k],lim=BAND[k]*BAND[k],n=Math.min(caps[k],m-r);let got=0;
+  for(let s=0;s<n;s++){if(PD[SELI[r+s]]>lim)break;setI(pl,got,SELI[r+s],1);got++}
+  r+=got;
+  for(const im of pl.ims){im.count=got;im.instanceMatrix.needsUpdate=true}}}
+function tick(dt,cx,cz){for(const s of SRC)s.update(dt);FLD.palm.update(dt);
+ const dx=cx-lx,dz=cz-lz;if(dx*dx+dz*dz>100){lx=cx;lz=cz;rebuild(cx,cz)}}
+function applyQuality(){const v=qp.veg;caps=CAPS.map(c=>Math.max(1,Math.round(c*v)));
+ const n=Math.max(1,Math.round(PN*qp.veg));
+ for(const im of FLD.ims){im.count=n}
+ P.concat([FLD]).forEach(pl=>pl.ims.forEach(im=>{im.castShadow=pl.shadow&&!!qp.shadow}));
+ /* re-run the assignment so a quality change resizes the detail pools now, rather than
+    at the next 10 m of driving (the pools used to stay at their old size until then) */
+ if(lx<1e8)rebuild(lx,lz)}
+return{add,commit,tick,applyQuality,placed:()=>PN,poolOf:k=>P[k],field:FLD};
+})();
+{const TN=3600;let n=0;
 for(let q=0;q<30000&&n<TN;q++){const x=(Math.random()*2-1)*1700,z=(Math.random()*2-1)*1700,r=Math.hypot(x,z);const Rr=RR(Math.atan2(z,x)),d=Rr-r;if(d<20)continue;const h=G(x,z);if(h<1.2||h>420||Math.hypot(G(x+3,z)-G(x-3,z),G(x,z+3)-G(x,z-3))/6>.6||Math.abs(r-.9*Rr)<10||near(x,z,10))continue;if(Math.random()>(d<110?.3:.8*(1-ss(150,420,h))))continue;
- const sc=.75+Math.random()*.9;o.position.set(x,h-.2,z);o.rotation.set(0,hs(n,17)*6.283,(hs(n,3)-.5)*.12);o.scale.set(sc,sc*(.9+hs(n,7)*.3),sc);o.updateMatrix();tr.setMatrixAt(n,o.matrix);cr2.setMatrixAt(n,o.matrix);o.rotation.set(0,0,0);ob(x,z,.45*sc+.1);n++}
-[tr,cr2].forEach(m=>{m.count=n;m.userData.total=n;m.castShadow=!!qp.shadow;m.frustumCulled=false;S.add(m)})}
+ const sc=.75+Math.random()*.9;
+ palmField.add(x,h-.2,z,sc,sc*(.9+hs(n,7)*.3),sc,hs(n,17)*6.283,(hs(n,3)-.5)*.12);
+ ob(x,z,.45*sc+.1);n++}
+palmField.commit()}
+/* ==== PALM-FIELD:END ==== */
 {const RN=420,rk=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),M({color:0x2c2a29,roughness:.95,flatShading:true}),RN),o=new T.Object3D();for(let i=0;i<RN;i++){const a=Math.random()*6.2832,Rr=RR(a),d=i<300?-6+Math.random()*34:30+Math.random()*500,r=Rr-d,x=r*Math.cos(a),z=r*Math.sin(a);if(Math.abs(r-.9*Rr)<9){o.scale.set(0,0,0)}else{const sc=.8+Math.random()*Math.random()*4;const onRd=near(x,z,sc*.9+1.5);if(onRd){o.scale.set(0,0,0)}else{o.scale.set(sc,sc*.7,sc);ob(x,z,sc*.9);o.position.set(x,G(x,z)-.2*sc,z)}}if(o.scale.x)o.position.set(x,G(x,z)-.2*o.scale.x,z);o.rotation.set(Math.random(),Math.random()*6,Math.random());o.updateMatrix();rk.setMatrixAt(i,o.matrix)}rk.castShadow=rk.receiveShadow=true;rk.frustumCulled=false;S.add(rk)}
 {const a=2.4,r=.78*RR(a),x=r*Math.cos(a),z=r*Math.sin(a),y=G(x,z),sm=M({color:0x6b6459,roughness:1,flatShading:true});[[34,3,24],[26,3,18],[18,3,12]].forEach(([w,h,d],i)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),sm);m.position.set(x,y+h*(i+.5)-1,z);m.rotation.y=-a;m.castShadow=m.receiveShadow=true;S.add(m)});
 for(let i=0;i<7;i++){const lx=(i-3)*3,m=new T.Mesh(new T.CylinderGeometry(.25,.35,5,6),M({color:0x4a3524,roughness:1}));m.position.set(x+lx*Math.cos(a),y+10.5,z+lx*Math.sin(a));m.castShadow=true;S.add(m)}ob(x,z,17)}
@@ -675,7 +785,7 @@ let last=0,fr=0,frN=0,qsShown=null,hudFrames=0,grLast=0,grFlash=0,grTxt='';const
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000||.016,.05);last=now;U.t.value+=dt;adaptRes(dt);mpTick(dt);
  if(wid===null)wr*=Math.exp(-dt*10);WH=Math.abs(wr)<.03?0:sg(wr)*Math.pow(Math.abs(wr),1.25);ws.style.transform='translateX('+wr*wh.clientWidth*.39+'px)';if(run)tod=(tod+dt*.03)%24;const ns=Math.min(4,Math.max(1,Math.ceil(dt/(1/120))));for(let i=0;i<ns;i++){const h=phys(dt/ns);if(h>2){shake=Math.min(1,shake+h*.08);crash(h);if(h>3)sparks(h)}}if(!(Math.hypot(car.x,car.z)<2100&&isFinite(car.y+car.th+car.vf+car.vl+car.w+car.pit+car.rol+car.vy))){respawn();note("Back on the road")}
  cg.position.set(car.x,car.y,car.z);cg.rotation.set(car.rol,car.th,car.pit);W.forEach(w=>{w.st.position.y=.9-w.s;if(w.f)w.st.rotation.y=-car.steer*.45/(1+Math.abs(car.vf)*.05);w.sp.rotation.z-=car.vf*dt/.35});
- red.emissiveIntensity=(K.B||K.S)?3.4:1.3;lit.emissiveIntensity=.5+2.2*(1-U.day.value);SWAY.t.value=U.t.value;
+ red.emissiveIntensity=(K.B||K.S)?3.4:1.3;lit.emissiveIntensity=.5+2.2*(1-U.day.value);palmField.tick(dt,car.x,car.z);
  {const adx=beac.position.x-car.x,adz=beac.position.z-car.z,ad=Math.hypot(adx,adz);
   if(rc.done||ad<45){arrow.visible=false}else{arrow.visible=true;arrow.rotation.y=Math.atan2(-adz,adx);
    const bob=Math.sin(U.t.value*2.4)*.18,asc=1+Math.sin(U.t.value*3.4)*.07;
