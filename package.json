@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/mp-flow.test.js"
+    "test": "node test/mp-flow.test.js",
+    "test:palm": "node test/palm.test.js",
+    "inline-palm": "node tools/inline-palm.js",
+    "inline-palm:check": "node tools/inline-palm.js --check"
   },
   "engines": {
     "node": ">=18"
