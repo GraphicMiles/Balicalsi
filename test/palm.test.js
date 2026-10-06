@@ -40,6 +40,7 @@ console.log('three r' + T.REVISION + ' (loaded from public/index.html)  |  palm-
 
 /* ---------- helpers ---------- */
 const PART = ['trunk', 'roots', 'fronds', 'rachis', 'nuts'];
+const PART_OF = { hero: PART, mid: PART, low: PART, ultra: ['trunk', 'blades'] };
 function scanAttrs (mesh) {
   const g = mesh.geometry, out = { nan: [], count: 0, maxIndex: -1, minY: Infinity, maxY: -Infinity, maxAbs: 0, degen: 0, zeroN: 0 };
   for (const k of Object.keys(g.attributes)) {
@@ -79,17 +80,21 @@ const triangleSum = palm => palm.meshes.reduce((s, m) => s + m.geometry.index.co
 
 /* ================= 1. builds at every detail level ================= */
 section('1. detail levels build and meet their triangle budget');
-const EXPECT = { hero: [140000, 200000], mid: [25000, 60000], low: [3000, 12000] };
+const LEVELS = ['hero', 'mid', 'low', 'ultra'];
+const EXPECT = { hero: [140000, 200000], mid: [25000, 60000], low: [3000, 12000], ultra: [60, 200] };
+const MESHES = { hero: 5, mid: 5, low: 5, ultra: 2 };   /* ultra omits roots/rachis/nuts */
 const built = {};
-for (const level of ['hero', 'mid', 'low']) {
+for (const level of LEVELS) {
   const p = createPalm(T, { detail: level });
   built[level] = p;
   const tri = triangleSum(p);
   const [lo, hi] = EXPECT[level];
   ok(level + ': triangles in budget ' + fmt(lo) + '-' + fmt(hi), tri >= lo && tri <= hi, '= ' + fmt(tri));
   ok(level + ': palm.triangles matches the geometry sum', p.triangles === tri, '= ' + fmt(p.triangles));
-  ok(level + ': 5 meshes (trunk, roots, fronds, rachis, nuts)', p.meshes.length === 5, '= ' + p.meshes.length);
-  ok(level + ': object is a Group with 5 children', p.object.isGroup === true && p.object.children.length === 5);
+  ok(level + ': ' + MESHES[level] + ' meshes (empty parts are skipped, not drawn)',
+    p.meshes.length === MESHES[level], '= ' + p.meshes.length);
+  ok(level + ': object is a Group with matching children',
+    p.object.isGroup === true && p.object.children.length === MESHES[level]);
   ok(level + ': base sits at the origin, height ' + p.height + ' m', Math.abs(p.height - 9.6) < 1e-9);
   ok(level + ': crown is a Vector3', p.crown && p.crown.isVector3 === true,
     '= (' + p.crown.x.toFixed(2) + ', ' + p.crown.y.toFixed(2) + ', ' + p.crown.z.toFixed(2) + ')');
@@ -98,7 +103,7 @@ for (const level of ['hero', 'mid', 'low']) {
 /* ================= 2. geometry integrity ================= */
 section('2. geometry integrity (no NaN, indices in range, no degenerate triangles)');
 let worstDegen = 0, worstZeroN = 0;
-for (const level of ['hero', 'mid', 'low']) {
+for (const level of LEVELS) {
   const p = built[level];
   let nan = [], maxIndex = -1, minY = Infinity, maxY = -Infinity, maxAbs = 0, degen = 0, zeroN = 0, bad = [];
   p.meshes.forEach((m, i) => {
@@ -118,7 +123,7 @@ for (const level of ['hero', 'mid', 'low']) {
   ok(level + ': 0 degenerate triangles (zero area wastes fill and breaks normals)', degen === 0, bad.join(' | ') || '0 / ' + fmt(p.meshes.reduce((s, m) => s + m.geometry.index.count / 3, 0)) + ' tris');
   ok(level + ': 0 zero-length normals', zeroN === 0, '= ' + zeroN);
   ok(level + ': fronds reach ~14 m above a 9.6 m trunk, base near y=0',
-    minY > -0.2 && minY < 0.05 && maxY > 13 && maxY < 15,
+    minY > -0.2 && minY < 0.05 && maxY > (level === 'ultra' ? 12 : 13) && maxY < 15,
     'y ' + minY.toFixed(3) + ' .. ' + maxY.toFixed(3));
   ok(level + ': every coordinate inside a 15 m box', maxAbs < 15, 'max |xyz| = ' + maxAbs.toFixed(3));
   ok(level + ': normals are unit length',
@@ -169,8 +174,10 @@ section('4. API surface and the wind hook');
   ok('uniforms are shared and live (uK=1.7, uT advanced by 0.5)',
     shaderProbe.k === 1.7 && Math.abs(shaderProbe.t - 0.5) < 1e-9,
     'uK=' + shaderProbe.k + ' uT=' + shaderProbe.t);
-  ok('frond + nut + rachis materials carry wind weights (aW attribute)',
+  ok('frond + rachis materials carry wind weights (aW attribute)',
     p.meshes[2].geometry.attributes.aW && p.meshes[3].geometry.attributes.aW);
+  ok('ultra blades carry wind weights too',
+    built.ultra.meshes[1].geometry.attributes.aW && built.ultra.meshes[1].geometry.attributes.aW.array.some(v => v > 0));
   ok('trunk has aW all zero (trunk does not sway)',
     Array.from(p.meshes[0].geometry.attributes.aW.array).every(v => v === 0));
   ok('cloning shares geometry + material (N palms, one upload)',
@@ -195,10 +202,10 @@ section('5. standalone: the module references no host environment');
 section('-'.repeat(64));
 console.log(pass + ' passed, ' + fail + ' failed');
 console.log('\ntriangle budget table (per palm):');
-for (const level of ['hero', 'mid', 'low']) {
+for (const level of LEVELS) {
   const p = built[level];
   console.log('  ' + level.padEnd(5) + fmt(triangleSum(p)).padStart(9) + ' tris   ' +
-    p.meshes.map((m, i) => PART[i] + ' ' + fmt(m.geometry.index.count / 3)).join(' | '));
+    p.meshes.map((m, i) => PART_OF[level][i] + ' ' + fmt(m.geometry.index.count / 3)).join(' | '));
 }
 console.log('\ndegenerate triangles: ' + worstDegen + ', zero-length normals: ' + worstZeroN +
   '  (both were non-zero before the leaflet-tip / coconut-pole fix)');

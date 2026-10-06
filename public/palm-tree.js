@@ -17,6 +17,8 @@
      'mid'  ~ 46k tris  trunk 140x32, 15 fronds x  56 leaflets, blades x2 wide
      'low'  ~  7k tris  trunk  40x12,  9 fronds x  22 leaflets, blades x4.5 wide
    leafW trades leaflet count for blade width so every LOD reads solid, not skeletal.
+     'ultra' ~ 72 tris  trunk 4x6, 8 fronds as single folded blades, no roots/nuts
+                        (the whole-island field: drawn 3600x, so it must stay tiny)
 
    LIGHTING / SHADOWS: meshes set castShadow + receiveShadow. The host scene needs a
    shadow-casting light (renderer.shadowMap.enabled = true). Fronds are opaque geometry
@@ -36,17 +38,18 @@ const V3=(x,y,z)=>new T.Vector3(x,y,z);
    width, which turns the crown into a see-through wire brush. Widening costs no
    triangles, so the cheap LODs keep a readable silhouette. */
 const DET={
- hero:{trunkRings:240,trunkSides:56,fronds:27,rachSeg:44,leaflets:105,leafRows:5,leafW:1.0,roots:44,rootSeg:14,rootSides:8,nuts:16,nutRings:18,nutSides:26},
- mid :{trunkRings:140,trunkSides:32,fronds:15,rachSeg:32,leaflets:56, leafRows:5,leafW:2.0,roots:24,rootSeg:10,rootSides:6,nuts:8, nutRings:12,nutSides:16},
- low :{trunkRings:40, trunkSides:12,fronds:9, rachSeg:12,leaflets:22, leafRows:3,leafW:4.5,roots:12,rootSeg:6, rootSides:5,nuts:5, nutRings:10,nutSides:10}};
+ hero:{trunkRings:240,trunkSides:56,fronds:27,rachSeg:44,leaflets:105,leafRows:5,leafW:1.0,roots:44,rootSeg:14,rootSides:8,nuts:16,nutRings:18,nutSides:26,blades:0},
+ mid :{trunkRings:140,trunkSides:32,fronds:15,rachSeg:32,leaflets:56, leafRows:5,leafW:2.0,roots:24,rootSeg:10,rootSides:6,nuts:8, nutRings:12,nutSides:16,blades:0},
+ low :{trunkRings:40, trunkSides:12,fronds:9, rachSeg:12,leaflets:22, leafRows:3,leafW:4.5,roots:12,rootSeg:6, rootSides:5,nuts:5, nutRings:10,nutSides:10,blades:0},
+ ultra:{trunkRings:4,  trunkSides:6, fronds:8, rachSeg:2, leaflets:1,  leafRows:1,leafW:1.0,roots:0, rootSeg:2, rootSides:3,nuts:0, nutRings:4, nutSides:4, blades:1}};
 const DD=DET[opts.detail]||DET.hero,dv=(k)=>opts[k]!==undefined?opts[k]:DD[k];
 const NR=dv('trunkRings'),NS=dv('trunkSides'),NF=dv('fronds'),N=dv('rachSeg'),NL=dv('leaflets'),RW=dv('leafRows'),
-      NROOT=dv('roots'),RSEG=dv('rootSeg'),RSIDE=dv('rootSides'),NNUT=dv('nuts'),NRING=dv('nutRings'),NSID=dv('nutSides'),LW=dv('leafW');
+      NROOT=dv('roots'),RSEG=dv('rootSeg'),RSIDE=dv('rootSides'),NNUT=dv('nuts'),NRING=dv('nutRings'),NSID=dv('nutSides'),LW=dv('leafW'),BLADE=dv('blades');
 const root=new T.Group();
 const U={t:{value:0},k:{value:1}};let tris=0;const meshes=[];
 /* geometry builder: positions, colours, wind weight, wind phase */
 const G=()=>({p:[],c:[],w:[],h:[],i:[],n:0}),V=(g,x,y,z,r,gg,b,w,h)=>{g.p.push(x,y,z);g.c.push(r,gg,b);g.w.push(w||0);g.h.push(h||0);return g.n++};
-function mesh(g,mat,wind){const o=new T.BufferGeometry();o.setAttribute('position',new T.Float32BufferAttribute(g.p,3));o.setAttribute('color',new T.Float32BufferAttribute(g.c,3));o.setAttribute('aW',new T.Float32BufferAttribute(g.w,1));o.setAttribute('aP',new T.Float32BufferAttribute(g.h,1));o.setIndex(g.i);o.computeVertexNormals();mat.vertexColors=true;mat.side=T.DoubleSide;
+function mesh(g,mat,wind){if(!g.i.length)return null;const o=new T.BufferGeometry();o.setAttribute('position',new T.Float32BufferAttribute(g.p,3));o.setAttribute('color',new T.Float32BufferAttribute(g.c,3));o.setAttribute('aW',new T.Float32BufferAttribute(g.w,1));o.setAttribute('aP',new T.Float32BufferAttribute(g.h,1));o.setIndex(g.i);o.computeVertexNormals();mat.vertexColors=true;mat.side=T.DoubleSide;
  if(wind)mat.onBeforeCompile=s=>{s.uniforms.uT=U.t;s.uniforms.uK=U.k;s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float aW,aP;uniform float uT,uK;').replace('#include <begin_vertex>','#include <begin_vertex>\nfloat q=aP*1.7;transformed+=vec3(sin(uT*1.4+q+position.x*.6),sin(uT*2.3+q*2.+position.z)*.35,cos(uT*1.1+q+position.z*.6))*aW*.15*uK;')};
  const m=new T.Mesh(o,mat);m.castShadow=m.receiveShadow=true;tris+=g.i.length/3;root.add(m);meshes.push(m);return m}
 /* generic tapered tube along a polyline */
@@ -73,6 +76,19 @@ const H=9.6,cen=u=>V3(Math.pow(u,1.7)*3.2+.14*Math.sin(u*9),u*H,Math.sin(u*3.2)*
 /* ---------- CROWN: fronds, each rachis + 2x leaflets ---------- */
 const crown=cen(1).add(V3(0,.06,0));
 {const g=G(),rg=G();
+ if(BLADE){/* ultra: one folded blade per frond instead of leaflet strips (4 tris a frond) */
+  for(let f=0;f<NF;f++){const a=NF>1?f/(NF-1):0,ph=f*2.39996+hs(f,1)*.5,dir=V3(Math.cos(ph),0,Math.sin(ph)),sd=V3(-Math.sin(ph),0,Math.cos(ph)),L=(4.3+hs(f,2)*.9)*(.88+.12*a),p0=lp(-.3,1.3,Math.pow(a,1.25))+(hs(f,3)-.5)*.2,bend=lp(1.7,.45,a),dry=Math.pow(1-a,3),pts=[];
+   let pos=crown.clone().addScaledVector(dir,.12);const ds=L/N;
+   for(let i=0;i<=N;i++){pts.push(pos.clone());const s=i/N,th=p0-bend*s*s;pos.addScaledVector(dir,Math.cos(th)*ds).addScaledVector(V3(0,1,0),Math.sin(th)*ds)}
+   const b0=g.n;
+   for(let i=0;i<=N;i++){const s=i/N,p=pts[i],t=(i<N?pts[i+1].clone().sub(p):p.clone().sub(pts[i-1])).normalize(),
+    up=new T.Vector3().crossVectors(sd,t).normalize(),w=.30+.26*Math.sin(PI*Math.pow(Math.max(s,.02),.8)),
+    k0=Math.min(1,dry*(.35+.65*s)+(s>.85?.25:0)),jr=.85+.3*hs(f*3+i,f);
+    for(const sg of[-1,1]){const q=p.clone().addScaledVector(sd,w*sg).addScaledVector(up,.14*w*sg);
+     V(g,q.x,q.y,q.z,lp(.10,.5,k0)*jr,lp(.24,.45,k0)*jr,lp(.05,.2,k0)*jr,(.25+.75*s)*.9,f*.9+i*.02)}}
+   for(let i=0;i<N;i++){const q=b0+i*2;g.i.push(q,q+2,q+1,q+1,q+2,q+3)}}
+  mesh(g,new T.MeshStandardMaterial({roughness:.48,emissive:0x1d3a0c,emissiveIntensity:.3}),true);
+ }else{
  for(let f=0;f<NF;f++){const a=NF>1?f/(NF-1):0,ph=f*2.39996+hs(f,1)*.5,dir=V3(Math.cos(ph),0,Math.sin(ph)),sd=V3(-Math.sin(ph),0,Math.cos(ph)),L=(4.3+hs(f,2)*.9)*(.88+.12*a),p0=lp(-.3,1.3,Math.pow(a,1.25))+(hs(f,3)-.5)*.2,bend=lp(1.7,.45,a),dry=Math.pow(1-a,3),pts=[];
   let pos=crown.clone().addScaledVector(dir,.12);const ds=L/N;
   for(let i=0;i<=N;i++){pts.push(pos.clone());const s=i/N,th=p0-bend*s*s;pos.addScaledVector(dir,Math.cos(th)*ds).addScaledVector(V3(0,1,0),Math.sin(th)*ds)}
@@ -86,7 +102,7 @@ const crown=cen(1).add(V3(0,.06,0));
      for(let e=-1;e<=1;e++){const q=c.clone().addScaledVector(t,e*w).addScaledVector(upT,Math.abs(e)*w*.7),m=e?1:.78;
       V(g,q.x,q.y,q.z,lp(dk,.55,k0)*m*jr,lp(gc,.47,k0)*m*jr,lp(.05+.06*rho,.2,k0)*m*jr,(.2+.8*s)*(.5+.5*rho)*.9,f*.9+j*.02)}}
     for(let r=0;r<RW-1;r++)for(let e=0;e<2;e++){const q=b0+r*3+e;g.i.push(q,q+1,q+3,q+1,q+4,q+3)}}}}
- mesh(g,new T.MeshStandardMaterial({roughness:.48,emissive:0x1d3a0c,emissiveIntensity:.3}),true);mesh(rg,new T.MeshStandardMaterial({roughness:.7}),true)}
+ mesh(g,new T.MeshStandardMaterial({roughness:.48,emissive:0x1d3a0c,emissiveIntensity:.3}),true);mesh(rg,new T.MeshStandardMaterial({roughness:.7}),true)}}
 /* ---------- COCONUTS ---------- */
 {const g=G();for(let n=0;n<NNUT;n++){const an=n*2.4+hs(n,5),rr=.18+.17*hs(n,6),cx=crown.x+Math.cos(an)*rr,cz=crown.z+Math.sin(an)*rr,cy=crown.y-.3-.14*hs(n,7),sz=.9+.25*hs(n,8),br=hs(n,9)>.7?1:0,b0=g.n;
  for(let i=0;i<=NRING;i++){const v=i/NRING*PI;for(let k=0;k<NSID;k++){const th=k/NSID*2*PI,rad=Math.max(Math.sin(v),.015)*(1+.07*Math.cos(3*th))*.135*sz,sh=.85+.3*hs(i,k+n);V(g,cx+Math.cos(th)*rad,cy+Math.cos(v)*.2*sz,cz+Math.sin(th)*rad,lp(.33,.42,br)*sh,lp(.42,.3,br)*sh,lp(.15,.16,br)*sh,.1,n)}}
