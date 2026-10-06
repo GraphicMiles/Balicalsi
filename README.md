@@ -1,8 +1,10 @@
-# Island Rally
+# Kauaʻi Drive
 
-A stylized, tropical arcade racing game built with Three.js and a small Node/WebSocket server. The art direction is a warm, sunlit island circuit: cobbled village lanes, packed-sand straights, a glossy turquoise lagoon, palms, surf shacks, docks, trackside festival details, and original procedural buggy/pickup visuals.
+A stylized open-world island driving game (Three.js), served with a small Node/WebSocket server.
 
-The scene is generated locally in the browser—there are no external model, texture, or font downloads required. A capped/adaptive render scale helps the game stay responsive across desktop and mobile hardware.
+The client is a **single self-contained file** (`public/index.html`) with the renderer inlined: no CDN,
+no model/texture downloads, no network calls at runtime. The Node server hosts it and keeps the
+WebSocket relay/lobby in place for the multiplayer work that is being folded in next.
 
 ## Run locally
 
@@ -13,41 +15,64 @@ npm start
 
 Then open `http://localhost:3000`.
 
-## Race modes
+## Deploy
 
-- **Play Offline** — race against local islander bots.
-- **Duo Sprint** — create a private room for two players.
-- **Island Cup** — host a six-player room; share the room code and start when ready.
+The same Node process serves `public/` and the WebSocket endpoint; set `PORT` in the hosting
+environment. A Render Blueprint (`render.yaml`) is included — the free plan spins down after
+~15 min of inactivity and wakes on the next request.
 
-## Controls
+## The game
 
-| Action | Keyboard | Touch / mobile |
+A volcanic island with a **closed coast road** (no dead ends), a switchback mountain road, dirt
+tracks into the jungle, an ancient heiau, and a steel arch bridge over a gorge. You can stay on
+asphalt or leave it anywhere: sand, dunes, jungle, lava rock, or the sea.
+
+- **Free drive** anywhere on the island, or run the **3-lap race** through the orange beacons.
+- 4 spring-damper wheels on the real terrain height field, bicycle tyre model with a friction
+  circle, weight transfer (roll/dive), drift and handbrake, per-surface grip (asphalt, grass, dirt
+  track, jungle, loose rock, water).
+- Dynamic time of day, weather (rain, wet-road grip, rooster-tail spray), a live ocean with
+  shore foam, and a reflection probe for the car paint.
+
+### Controls
+
+| Action | Keyboard | Touch |
 |---|---|---|
-| Accelerate | `↑` / `W` | **GAS** |
-| Brake / reverse | `↓` / `S` | **BRAKE** |
-| Steer | `←` `→` / `A` `D` | Tap left/right half of screen, or enable tilt |
-| Boost | `Space` / `Shift` | **BOOST** |
-| Use item | `E` / `Enter` | **ITEM** |
+| Accelerate | `W` / `↑` | **GAS** |
+| Brake / reverse | `S` / `↓` | **BRAKE** |
+| Steer | `A` `D` / `←` `→` | steering pad (or the D/R buttons for direction) |
+| Handbrake / drift | `Space` | **HB** |
+| Camera | `C` | ☰ → Chase/Cockpit |
+| Recover to nearest road | `X` or `Home` | ☰ → Reset |
+| Quality mode (AUTO / HIGH / MED / LOW) | `End` | ☰ → Quality |
 
-Pick up glowing mystery crates for rockets, bombs, shields, nitro, warp jumps, and mines. Settings include steering sensitivity, throttle response, audio, tilt inversion, and camera shake.
+### Performance
+
+An adaptive resolution scaler trims pixels before it drops frames, and a quality mode cycle
+(`AUTO` → `HIGH · FIXED` → `MED · FIXED` → `LOW · FIXED`) lets you lock render scale if you would
+rather trade smoothness for a fixed picture. The live state is shown under the minimap.
+
+## Repository layout
+
+```
+public/index.html   the game (self-contained: Three.js r128 inlined)
+server.js           static host for public/ + WebSocket relay/lobby (multiplayer)
+render.yaml         Render Blueprint (single Node service, HTTP + WebSocket)
+```
+
+## Multiplayer status
+
+`server.js` still implements the room/lobby/countdown/finish-order protocol and relays car state
+between clients. The game client currently ships as a single-player build; wiring it to that
+relay is the next step.
 
 ## Visual pass
 
-- Golden-hour sky, warm atmospheric haze, moving lagoon water, shoreline foam, and distant island silhouettes.
-- Three distinct road treatments across the circuit: village cobbles, packed earth, and shaded asphalt, with clean edge lines and center dashes.
-- Instanced palms, low-poly coastal rocks, pastel surf cottages, shop signs, beach huts, docks, surfboards, pennants, and start-line garlands.
-- A checkered coastal grand-prix gate and readable animated mystery crates.
-- Updated responsive lobby/HUD styling and an adaptive pixel-ratio cap for smoother rendering on mobile.
+Procedurally generated scene: textured, wind-swayed palms with alpha-tested frond shadows;
+tri-planar-style terrain detail with slope/height splatting (sand, grass, jungle, basalt);
+asphalt grain, wheel-path wear and dirt-track variation; car paint and tyre normal maps; dust,
+spray and water plume particles; device-pixel-accurate HUD (needle cluster, slip meter, rotating
+minimap).
 
-The game is an original browser-based arcade prototype; the scene uses procedural geometry and textures rather than imported AAA production assets.
-
-## Deploy
-
-The service serves `public/` and the WebSocket multiplayer endpoint from the same Node process. Set `PORT` in the hosting environment and run:
-
-```bash
-npm ci
-npm start
-```
-
-The client selects `ws://` or `wss://` from the page protocol automatically. A `render.yaml` Blueprint is included for Render deployment.
+The scene is generated locally from procedural geometry and textures rather than imported
+production assets.
