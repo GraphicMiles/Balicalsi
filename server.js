@@ -1,5 +1,5 @@
 /* =========================================================================
-   Beach Buggy Online — multiplayer server
+   Kauai Drive — multiplayer server
    - Static file server for /public
    - WebSocket relay + room/lobby/match orchestration
    - Two modes: "dual" (2 players) and "championship" (6 players)
@@ -109,11 +109,13 @@ wss.on('connection', (ws) => {
 
     else if (m.type === 'start') {
       const room = rooms.get(me.room);
-      if (!room || room.hostId !== id || room.state !== 'lobby') return;
+      if (!room || room.hostId !== id) return;
+      if (room.state !== 'lobby' && room.state !== 'finished') return;   // rematch after a race
       if (room.players.size < 1) return;
       room.state = 'racing';
       room.startTime = Date.now() + 3800;     // ~3.8s countdown
       room.finishOrder = [];
+      for (const p of room.players.values()) { p.finTime = 0; p.lastProg = 0; }   // reset for the rematch
       broadcast(room, { type: 'start', startTime: room.startTime, seed: room.seed, max: room.max,
                         players: publicPlayers(room), mode: room.mode });
     }
@@ -207,20 +209,7 @@ function finalize(room) {
   })) });
 }
 
-// keep latest progress for DNF ranking
-wss.on('connection', () => {}); // (noop placeholder; progress stored below)
-
-// augment sync handler to store lastProg (patched by wrapping)
-const _on = wss.emit.bind(wss);
-// store progress inside the sync branch already runs; add a tiny hook:
-setInterval(() => {
-  for (const room of rooms.values()) {
-    if (room.state !== 'racing') continue;
-    for (const p of room.players.values()) {
-      if (p.lastProg !== undefined) { /* already */ }
-    }
-  }
-}, 4000);
+/* note: per-player progress for DNF ranking is stored in the 'sync' handler (p.lastProg) */
 
 // heartbeat
 const interval = setInterval(() => {
@@ -234,5 +223,5 @@ wss.on('connection', (ws) => { ws.isAlive = true; ws.on('pong', () => { ws.isAli
 wss.on('close', () => clearInterval(interval));
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Island Rally server running on http://0.0.0.0:${PORT}`);
+  console.log(`Kauai Drive server running on http://0.0.0.0:${PORT}`);
 });

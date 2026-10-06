@@ -52,13 +52,67 @@ canvas{display:block;width:100%;height:100%}
  #wh{height:min(22vh,64px)}
  #rp{gap:6px}
 }
+/* --- multiplayer lobby --- */
+.k{min-width:min(88vw,360px)}
+.k .row{display:flex;gap:8px;justify-content:center;margin:8px 0}
+.k input{flex:1;min-width:0;background:#10312b;border:1px solid #3d6f63;border-radius:10px;padding:9px 12px;
+ font:700 14px system-ui,sans-serif;color:#fff;text-align:center;letter-spacing:1px;text-transform:uppercase}
+.k input::placeholder{color:#7fa39a;text-transform:none;letter-spacing:0}
+.k button{background:#ff5a1f;color:#fff;border:0;border-radius:12px;padding:10px 18px;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.k button.big{padding:12px 30px;font-size:16px}
+.k button.ghost{background:#2b4a55}
+.k button:disabled{background:#5a6a70;cursor:default;opacity:.7}
+.k .warn{color:#c0392b;font-weight:700;min-height:16px;margin:6px 0 0;font-size:12px}
+.k .hint{color:#5c7b74;font-size:12px;margin:6px 0 0}
+#codepill{display:inline-flex;flex-direction:column;align-items:center;background:#10312b;border:1px dashed #4c8f7d;border-radius:12px;padding:6px 18px;margin:2px 0 10px}
+#codepill span{font:900 26px/1.1 ui-monospace,monospace;letter-spacing:6px;color:#ffd24a}
+#codepill small{font:700 10px system-ui,sans-serif;color:#7fa39a;letter-spacing:2px;text-transform:uppercase}
+#plist{list-style:none;margin:0;padding:0;text-align:left;max-height:34vh;overflow:auto}
+#plist li{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font:800 14px system-ui,sans-serif}
+#plist li.me{background:#e7f6ef}
+#plist i{width:14px;height:14px;border-radius:50%;flex:none;border:2px solid #10222b33}
+#plist em{margin-left:auto;font:700 11px system-ui,sans-serif;color:#ff5a1f;font-style:normal}
+#plist li.off em{color:#7c8b86}
+#countdown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#countdown b{font:italic 900 min(22vh,150px)/1 system-ui,sans-serif;color:#fff;text-shadow:0 6px 24px #000a,0 0 40px #ff7a1fa0;transform:scale(1)}
+#results ol{text-align:left;margin:0 0 12px;padding-left:22px}
+#results li{margin:5px 0;font:800 15px system-ui,sans-serif}
+#results li.me{color:#ff5a1f}
+#results li small{color:#5c7b74;font-weight:700}
+/* --- live standings during a race --- */
+#stand{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));
+ display:none;flex-direction:column;gap:3px;pointer-events:none;z-index:2}
+#stand.on{display:flex}
+#stand div{display:flex;gap:7px;align-items:center;background:rgba(8,14,22,.55);border-radius:7px;padding:3px 9px;
+ font:800 12px system-ui,sans-serif;color:#fff;backdrop-filter:blur(6px)}
+#stand div.me{outline:1px solid #ff7a1f}
+#stand i{width:9px;height:9px;border-radius:50%;flex:none}
+#stand em{font-style:normal;color:#ffd24a;margin-left:auto}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="h"><div class="t"><div class="lf"><div class="c" id="rc"></div><canvas id="mp" width="260" height="260"></canvas><div class="c" id="ms" style="display:none;background:rgba(192,57,43,.85)"></div><div class="c" id="qs" style="display:none;opacity:.6;font-size:12px;border-left-color:#8fa8ff"></div></div><div class="c" id="tm">17:00</div><div class="rt"><button class="c" id="mb">&#9776;</button><div class="g" id="mm"><button class="c" id="vw">Chase</button><button class="c" id="ql">Quality</button><button class="c" id="td">+3h</button><button class="c" id="rn">Rain</button><button class="c" id="mt">Mtn road</button><button class="c" id="rs">Reset</button><button class="c" id="mu">Sound</button></div></div></div>
 <div id="ds"><canvas id="dc" width="520" height="300"></canvas><div id="sv">0</div><div id="su">KM/H</div><div id="gr">N</div><div id="al"></div></div>
 <div id="wh"><div id="wk"></div><i>&lsaquo;</i><i>&rsaquo;</i></div>
 <div id="rp"><div class="gs"><button class="pd on" id="gD">D</button><button class="pd" id="gR">R</button></div><button class="pd" id="hb" data-k="H">HB</button><button class="pd" id="br" data-k="B">BRAKE</button><button class="pd" id="gas" data-k="G">GAS</button></div></div>
-<div id="ov"><div class="k"><h1>Kauaʻi Drive</h1><p>A volcanic island with a closed coast road: no dead ends. Stay on asphalt or leave it anywhere: sand, dunes, jungle, lava rock, an ancient heiau. Race: 3 laps, drive through the orange beacons. Touch: slide your thumb on the steering pad, GAS and BRAKE on the right, D/R = drive or reverse. Keys: WASD, Space = drift, R = reverse, C = view, X = back on road. Find the switchback mountain road (Mtn road button) and the dirt tracks into the jungle.</p><button id="go">Start driving</button></div></div>
+<div id="ov"><div class="k"><h1>Kauaʻi Drive</h1>
+<div id="menu" style="display:none"><p>A volcanic island with a closed coast road: no dead ends. Stay on asphalt or leave it anywhere: sand, dunes, jungle, lava rock, an ancient heiau. Race: 3 laps, drive through the orange beacons. Touch: slide your thumb on the steering pad, GAS and BRAKE on the right, D/R = drive or reverse. Keys: WASD, Space = drift, R = reverse, C = view, X = back on road. Find the switchback mountain road (Mtn road button) and the dirt tracks into the jungle.</p></p>
+<div class="row"><input id="plname" maxlength="16" placeholder="your name" autocomplete="off"></div>
+<div class="row"><button id="go" class="big">Play offline</button></div>
+<div class="row"><button id="mkduo">Duo Sprint</button><button id="mkcup">Island Cup</button></div>
+<div class="row"><input id="roomcode" maxlength="6" placeholder="room code" autocomplete="off"><button id="joinroom">Join</button></div>
+<p id="neterr" class="warn"></p>
+</div>
+<div id="roomview">
+ <div id="codepill"><span id="codebig"></span><small>room code</small></div>
+ <ul id="plist"></ul>
+ <div class="row"><button id="startrace">Start race</button><button id="leaveroom">Leave</button></div>
+ <p class="hint" id="roomhint">Waiting for the host…</p>
+</div>
+<div id="countdown" style="display:none"></div>
+<div id="results" style="display:none"><h2>Results</h2><ol id="rlist"></ol>
+ <div class="row"><button id="again">Play again</button><button id="rmenu">Menu</button></div></div>
+</div></div>
+<div id="stand"></div>
 <div id="rot">Rotate your phone to landscape to drive</div>
 <!-- three.js r128 (inlined so the game runs offline / inside sandboxed previews) -->
 <script>/**
@@ -420,7 +474,7 @@ function recover(msg){const q=nearestRoad(car.x,car.z);if(q){car.x=q.x;car.z=q.z
  car.vf=car.vl=car.w=car.vy=car.pit=car.rol=car.pv=car.rv=car.dr=car.stk=car.wet=0;car.steer=car.sh=0;car.gr=0;car.rpm=900;car.y=GP(car.x,car.z)+.3;cyaw=car.th;cam.position.set(car.x-Math.cos(car.th)*8,car.y+3,car.z+Math.sin(car.th)*8);note(msg)}
 function note(t){const e=$("ms");e.textContent=t;e.style.display="block";clearTimeout(note.h);note.h=setTimeout(()=>e.style.display="none",2800)}
 function surfAt(x,z,h){const r=Math.hypot(x,z),Rr=RR(Math.atan2(z,x));if(h<-.12)return 4;if(Math.abs(r-.9*Rr)<6.2)return 0;const q=rq(x,z);if(q&&q.d<q.R.hw+.2)return q.R.ty?5:0;if(Math.hypot(G(x+2,z)-G(x-2,z),G(x,z+2)-G(x,z-2))/4>.8)return 3;return Rr-r<75?1:2}
-function phys(dt){const c=Math.cos(car.th),s=Math.sin(car.th),fx=c,fz=-s,rx=s,rz=c,sp=Math.abs(car.vf),thr=K.G?1:0,brk=K.B||K.S?1:0,hb=K.H?1:0,st=cl((K.R?1:0)-(K.L?1:0)+WH+(hb||sp<4?0:sg(car.vf)*cl(1.3*car.vl/(sp+5),-.35,.35)),-1,1),m=1700;
+function phys(dt){const LK=NET.locked?0:1,c=Math.cos(car.th),s=Math.sin(car.th),fx=c,fz=-s,rx=s,rz=c,sp=Math.abs(car.vf),thr=(K.G&&LK)?1:0,brk=(K.B||K.S)&&LK?1:0,hb=(K.H&&LK)?1:0,st=cl((K.R&&LK?1:0)-(K.L&&LK?1:0)+WH*LK+(hb||sp<4?0:sg(car.vf)*cl(1.3*car.vl/(sp+5),-.35,.35)),-1,1),m=1700;
  car.steer+=(st-car.steer)*Math.min(1,dt*(WH?14:st?6:9));let dl=0,cd=1,sd=0;
  let FS=0,Nf=0,Nr=0,cnt=0,cntF=0,cntR=0;const gh=[];
  hp.forEach(([hx,hz],i)=>{const g=GP(car.x+fx*hx+rx*hz,car.z+fz*hx+rz*hz),hy=car.y+.9+car.pit*hx-car.rol*hz,sl=hy-g-.35;
@@ -476,6 +530,7 @@ function phys(dt){const c=Math.cos(car.th),s=Math.sin(car.th),fx=c,fz=-s,rx=s,rz
 /* audio: engine, surf, wind, tyres, gulls, ukulele-style music */
 let AC,MG,MB,NB,EO,EO2,EG,EF,LW,LS,LN,LK,LR,muted=false,gt2=3,nt0=0,stp=0;
 function loop(type,f,q){const s=AC.createBufferSource();s.buffer=NB;s.loop=true;const fl=AC.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const g=AC.createGain();g.gain.value=0;s.connect(fl);fl.connect(g);g.connect(MG);s.start();return g}
+function startAudio(){audio();try{if(AC&&AC.state==='suspended')AC.resume()}catch(e){}}
 function audio(){if(AC)return;AC=new(window.AudioContext||window.webkitAudioContext)();const cp=AC.createDynamicsCompressor();MG=AC.createGain();MG.gain.value=.9;MG.connect(cp);cp.connect(AC.destination);
  NB=AC.createBuffer(1,AC.sampleRate*3,AC.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
  EG=AC.createGain();EG.gain.value=0;EF=AC.createBiquadFilter();EF.type='lowpass';EF.frequency.value=700;EO=AC.createOscillator();EO.type='sawtooth';EO2=AC.createOscillator();EO2.type='square';EO.connect(EF);EO2.connect(EF);EF.connect(EG);EG.connect(MG);EO.start();EO2.start();
@@ -494,6 +549,161 @@ function au(dt){if(!AC)return;const t=AC.currentTime,sp=Math.abs(car.vf),thr=K.G
  EO.frequency.setTargetAtTime(rpm/60*4,t,.05);EO2.frequency.setTargetAtTime(rpm/60*2,t,.05);EG.gain.setTargetAtTime(.04+.08*thr+.04*sp/90,t,.08);EF.frequency.setTargetAtTime(500+thr*900+rpm*.25,t,.1);
  LW.gain.setTargetAtTime(.02+.22*prox*sw,t,.3);LS.gain.setTargetAtTime(.008+.06*prox*(1-sw*.5),t,.3);LN.gain.setTargetAtTime(.012+sp*.002,t,.2);LK.gain.setTargetAtTime(sp>3?cl(Math.abs(car.vl)*.05+car.spin*.15,0,.4):0,t,.05);
  LR.gain.setTargetAtTime(.16*rain,t,.4);music();gt2-=dt;if(gt2<0){gt2=3+Math.random()*6;if(prox>.12)gull(prox)}}
+
+/* =========================================================================
+   MULTIPLAYER  (protocol identical to the existing Node/WebSocket server)
+     -> {type:'create'|'join'|'start'|'sync'|'ping'}
+     <- {type:'created'|'joined'|'lobby'|'start'|'peer'|'results'|'left'|'host'|'error'|'pong'}
+   The server owns the lobby, the countdown and the finish order; the client owns
+   its own car and relays a compact state packet ~12 times a second.
+   ========================================================================= */
+const NET={ws:null,on:false,you:0,slot:0,mode:'dual',max:2,code:'',host:0,seed:0,
+ startAt:0,rtt:60,pongs:0,racing:false,locked:false,fin:0,sent:0,err:'',stale:0};
+const RIVALS={};      /* slot -> {g,st,sp,color,name,buf:[]} */
+const PINFO={};       /* slot -> {name,color} */
+const A0_GRID=.3;
+const RN=['Kai','Mako','Lani','Noa','Koa','Leilani','Hoku','Ikaika','Moana','Kalani','Pua','Kimo'];
+
+function netURL(){return (location.protocol==='https:'?'wss://':'ws://')+location.host}
+function netSend(o){try{if(NET.ws&&NET.ws.readyState===1){NET.ws.send(JSON.stringify(o));return true}}catch(e){}return false}
+function myName(){const el=$('plname');const v=(el&&el.value||'').trim();return (v||RN[(Math.random()*RN.length)|0]+((Math.random()*90+10)|0)).slice(0,16)}
+function myColor(){return ['#ff5a1f','#35e0ff','#ffd24a','#ff4d6d','#7cf67c','#c084fc'][((Math.random()*6)|0)]}
+function netErr(t){const e=$('neterr');if(e)e.textContent=t||''}
+function showMenu(){const m=$('menu');if(m)m.style.display='block';const r=$('roomview');if(r)r.style.display='none';
+ const rs=$('results');if(rs)rs.style.display='none';$('ov').style.display='flex'}
+function showRoom(){const m=$('menu');if(m)m.style.display='none';const r=$('roomview');if(r)r.style.display='block';
+ $('codebig').textContent=NET.code;$('startrace').style.display=(NET.you===NET.host)?'':'none';
+ $('roomhint').textContent=(NET.you===NET.host)?'You are the host — start when ready':'Waiting for the host…'}
+function listPlayers(list){PINFO.length=0;const ul=$('plist');if(!ul)return;ul.innerHTML='';
+ (list||[]).forEach(p=>{PINFO[p.slot]={name:p.name,color:p.color};
+  const li=document.createElement('li');if(p.slot===NET.slot)li.className='me';
+  li.innerHTML='<i style="background:'+p.color+'"></i><span>'+p.name.replace(/[<>&]/g,'')+'</span>'+
+   (p.host?'<em>HOST</em>':'')+(p.slot===NET.slot?'<em>YOU</em>':'');ul.appendChild(li)})}
+
+function netConnect(then){$('ov').style.display='flex';
+ try{NET.ws=new WebSocket(netURL())}catch(e){netErr('Multiplayer unavailable — playing offline');return false}
+ NET.ws.onopen=()=>{NET.on=true;netErr('');then&&then()};
+ NET.ws.onerror=()=>{netErr('Cannot reach the race server — check that it is running');NET.on=false;showMenu()};
+ NET.ws.onclose=()=>{const was=NET.racing||NET.code;NET.on=false;
+  const showingResults=$('results')&&$('results').style.display==='block';
+  if(was){NET.racing=false;NET.locked=false;$('countdown').style.display='none';
+   netErr('Disconnected from the server');
+   if(!showingResults){$('ov').style.display='flex';showMenu()}   /* never hide a finished race's results */
+   else $('roomhint').textContent='Disconnected'}};
+ NET.ws.onmessage=e=>{let m;try{m=JSON.parse(e.data)}catch(x){return}netOn(m)};
+ return true}
+
+/* ---- create / join ---- */
+function netCreate(mode){netConnect(()=>{netSend({type:'create',mode:mode,name:myName(),color:myColor()})})}
+function netJoin(code){if(!code){netErr('Enter a room code');return}
+ netConnect(()=>{netSend({type:'join',code:code.toUpperCase().slice(0,6),name:myName(),color:myColor()})})}
+
+function netOn(m){
+ if(m.type==='created'||m.type==='joined'){
+  NET.you=m.you;NET.slot=m.slot;NET.code=m.code;NET.mode=m.mode;NET.max=m.max;NET.seed=m.seed;NET.host=m.host;
+  listPlayers(m.players);showRoom();startAudio();note((m.type==='created'?'Room ':'Joined ')+m.code)}
+ else if(m.type==='lobby'){NET.host=m.host;listPlayers(m.players)}
+ else if(m.type==='start'){startMultiRace(m)}
+ else if(m.type==='peer'){const r=RIVALS[m.slot];if(r&&m.s){r.buf.push({t:performance.now(),d:m.s});
+   if(r.buf.length>24)r.buf.shift();PINFO[m.slot]&&(r.name=PINFO[m.slot].name);NET.stale=0}}
+ else if(m.type==='left'){dropRival(m.slot);note('A player left the race')}
+ else if(m.type==='host'){NET.host=PINFO[m.slot]?m.slot:NET.host}
+ else if(m.type==='results'){showResults(m.order)}
+ else if(m.type==='error'){netErr(m.msg);showMenu();NET.code='';NET.racing=false}
+ else if(m.type==='pong'){NET.rtt=Math.max(8,Math.min(400,(performance.now()-m.t)*.5));NET.pongs++}}
+
+/* ---- the countdown, the grid, and the green flag ---- */
+function gridPose(slot){const a=A0_GRID-slot*.0026,r=.9*RR(a),lat=((slot%2)?1:-1)*(1.1+((slot/2)|0)*.5);
+ const cx=Math.cos(a),cz=Math.sin(a);return {x:r*cx+cz*lat,z:r*cz-cx*lat,th:Math.atan2(-cx,-cz)}}
+function startMultiRace(m){
+ NET.racing=true;NET.locked=true;NET.fin=0;NET.startAt=0;
+ listPlayers(m.players);m.players.forEach(p=>{if(p.slot!==NET.slot)ensureRival(p.slot,p.color,p.name)});
+ const raw=(m.startTime||0)-Date.now();      /* guard against clock skew between machines */
+ NET.startAt=performance.now()+(raw>400&&raw<12000?raw:3800)+NET.rtt;
+ const g=gridPose(NET.slot);
+ car.x=g.x;car.z=g.z;car.th=g.th;car.vf=car.vl=car.w=car.vy=0;car.pit=car.rol=car.pv=car.rv=0;
+ car.y=GP(car.x,car.z)+.3;cyaw=car.th;
+ cam.position.set(car.x-Math.cos(car.th)*7.6,car.y+2.6,car.z+Math.sin(car.th)*7.6);cam.lookAt(car.x,car.y+1.3,car.z);
+ rc={k:1,lap:1,t:0,on:0,done:0,msg:'',best:rc.best||0,lapT0:0,last:0};bp();
+ $('ov').style.display='none';$('countdown').style.display='flex';$('stand').classList.add('on');
+ note('Race starts — 3 laps, follow the beacons')}
+
+/* ---- rivals: one simplified car each, drawn ~130ms in the past ---- */
+function ensureRival(slot,color,name){
+ if(RIVALS[slot])return RIVALS[slot];
+ const g=new T.Group(),bd2=new T.Group();g.add(bd2);g.rotation.order='YZX';
+ const paint2=new T.MeshPhysicalMaterial({color:new T.Color(color||'#35e0ff'),metalness:.5,roughness:.24,clearcoat:1,
+  clearcoatRoughness:.06,envMap:EV,envMapIntensity:1.2,side:T.DoubleSide});
+ let body=null;if(bd.children.length)body=new T.Mesh(bd.children[0].geometry,[paint2,new T.MeshBasicMaterial({visible:false})]);
+ if(body){body.castShadow=true;bd2.add(body)}
+ const W2=[];[[1.36,-.81],[1.36,.81],[-1.36,-.83],[-1.36,.83]].forEach(([x,z])=>{const st=new T.Group(),sp=new T.Group();
+  st.position.set(x,.35,z);const ty=new T.Mesh(tgm,tm);ty.castShadow=true;const rim=new T.Mesh(rgm,rm2);st.add(ty,rim);st.add(sp);g.add(st);W2.push({st,sp,f:x>0})});
+ S.add(g);
+ const r={g,bd2,W2,slot,color:color||'#35e0ff',name:name||'Player',buf:[]};
+ RIVALS[slot]=r;return r}
+function dropRival(slot){const r=RIVALS[slot];if(!r)return;S.remove(r.g);delete RIVALS[slot]}
+function clearRivals(){Object.keys(RIVALS).forEach(k=>dropRival(k))}
+
+function angLerp(a,b,t){let d=b-a;while(d>PI)d-=2*PI;while(d<-PI)d+=2*PI;return a+d*t}
+function netFrame(dt){
+ /* ping for the latency estimate used when syncing the countdown */
+ if(NET.on&&!NET.racing&&performance.now()-NET.sent>1500){netSend({type:'ping',t:performance.now()});NET.sent=performance.now()}
+ /* countdown */
+ if(NET.racing&&NET.startAt){
+  const left=(NET.startAt-performance.now())/1000;
+  const el=$('countdown');
+  if(left>0){el.style.display='flex';
+   const n=Math.ceil(left);
+   el.innerHTML='<b>'+(n>0?n:'GO')+'</b>';
+   el.firstChild.style.transform='scale('+(1+((left%1)?.55:0))+')';
+   el.firstChild.style.opacity=String(.55+.45*Math.min(1,left%1*2+.3));
+  } else {NET.locked=false;NET.startAt=0;el.style.display='none'}
+ }
+ /* send our state ~12Hz while racing */
+ if(NET.racing&&NET.on&&physicalNow-lastSent>80){
+  lastSent=physicalNow;
+  const q=r=>Math.round(r*100)/100,prog=(rc.lap-1)*NC+(rc.k-1);
+  netSend({type:'sync',s:{x:q(car.x),z:q(car.z),y:q(car.y),th:q(car.th),vf:q(car.vf),vl:q(car.vl),
+   pi:q(car.pit),ro:q(car.rol),sp:q(car.w),pg:prog,fn:rc.done?Math.round(rc.t*1000):0}});
+  if(rc.done&&!NET.fin){NET.fin=1}
+ }
+ /* interpolate every rival ~130ms behind, so their motion is smooth */
+ const rt=performance.now()-130;
+ for(const k in RIVALS){const r=RIVALS[k],b=r.buf;
+  if(!b.length){r.g.visible=false;continue}
+  const last=b[b.length-1];
+  if(performance.now()-last.t>4000){r.g.visible=false;continue}
+  r.g.visible=true;
+  let a=null,c=null;
+  for(let i=b.length-1;i>0;i--){if(b[i-1].t<=rt&&b[i].t>=rt){a=b[i-1];c=b[i];break}}
+  let x,y,z,th,pi2,ro,sp;
+  if(a&&c){const f=(rt-a.t)/Math.max(1,c.t-a.t);x=lp(a.d.x,c.d.x,f);y=lp(a.d.y,c.d.y,f);z=lp(a.d.z,c.d.z,f);
+   th=angLerp(a.d.th,c.d.th,f);pi2=lp(a.d.pi||0,c.d.pi||0,f);ro=lp(a.d.ro||0,c.d.ro||0,f);sp=c.d.sp||0}
+  else{x=last.d.x;y=last.d.y;z=last.d.z;th=last.d.th;pi2=last.d.pi||0;ro=last.d.ro||0;sp=last.d.sp||0}
+  r.g.position.set(x,y,z);r.g.rotation.set(ro,th,pi2);
+  const vs=last.d.vf||0;r.W2.forEach(w=>{w.sp.rotation.z-=vs*dt/.35;w.st.rotation.y=0});
+ }
+ if($('stand').classList.contains('on'))updateStandings()}
+
+/* ---- standings + results ---- */
+function progressOf(p){return p}
+function updateStandings(){
+ const rows=[{slot:NET.slot,name:myName(),color:'#fff',me:true,prog:(rc.lap-1)*NC+(rc.k-1),done:rc.done?rc.t:0}];
+ for(const k in RIVALS){const r=RIVALS[k],b=r.buf,last=b.length?b[b.length-1].d:null;
+  rows.push({slot:+k,name:r.name,color:r.color,me:false,prog:last?(last.pg||0):0,done:last&&last.fn?last.fn/1000:0})}
+ rows.sort((a,b)=>(a.done&&b.done)?a.done-b.done:(a.done?-1:(b.done?1:(b.prog-a.prog))));
+ const el=$('stand');el.innerHTML='';
+ rows.forEach((r,i)=>{const d=document.createElement('div');if(r.me)d.className='me';
+  d.innerHTML='<i style="background:'+r.color+'"></i>'+(i+1)+' '+r.name.replace(/[<>&]/g,'')+
+   '<em>'+(r.done?fmt(r.done):'L'+Math.min(NL,Math.floor(r.prog/NC)+1))+'</em>';el.appendChild(d)})}
+function showResults(order){
+ NET.racing=false;NET.locked=false;$('countdown').style.display='none';$('stand').classList.remove('on');
+ const ol=$('rlist');if(!ol)return;ol.innerHTML='';
+ (order||[]).forEach(p=>{const li=document.createElement('li');if(p.slot===NET.slot)li.className='me';
+  li.innerHTML=p.rank+'. '+String(p.name).replace(/[<>&]/g,'')+' <small>'+(p.finished?fmt(p.time/1000):'DNF')+'</small>';ol.appendChild(li)});
+ showMenu();const rv=$('roomview');if(rv)rv.style.display='none';
+ $('results').style.display='block';$('again').textContent=(NET.you===NET.host)?'Race again':'Menu'}
+
 /* camera, input, loop */
 let fp=false,cyaw=car.th,shake=0;
 /* snap the chase camera behind the car instead of letting it fly in from the world origin:
@@ -575,6 +785,10 @@ function minimap(){const g=mx,cx=MPL.w/2,cy=MPL.h/2;
  if(bd<700){g.fillStyle='#ff7a1f';g.beginPath();g.arc(bx,by,6,0,6.3);g.fill();
   if(bd<60){const pulse=3+2*Math.sin(U.t.value*6);g.strokeStyle='rgba(255,122,31,.9)';g.lineWidth=2;g.beginPath();g.arc(bx,by,10+pulse,0,6.3);g.stroke()}}
  else{g.save();g.translate(cx,cy);g.rotate(Math.atan2(bdz,bdx)+rot);g.fillStyle='#ff7a1f';g.beginPath();g.moveTo(96,0);g.lineTo(82,-8);g.lineTo(82,8);g.closePath();g.fill();g.restore()}
+ /* rivals */
+ for(const k in RIVALS){const r=RIVALS[k];if(!r.g.visible)continue;
+  const ddx=r.g.position.x-car.x,ddz=r.g.position.z-car.z;
+  g.fillStyle=r.color;g.beginPath();g.arc(cx+(ddx*Math.cos(rot)-ddz*Math.sin(rot))*S,cy+(ddx*Math.sin(rot)+ddz*Math.cos(rot))*S,5,0,6.3);g.fill()}
  /* north tick + player marker (fixed, since the map turns) */
  g.save();g.translate(cx,cy);g.rotate(-PI/2+rot);
  g.fillStyle='rgba(255,255,255,.75)';g.font='italic 900 13px system-ui,sans-serif';g.textAlign='center';
@@ -629,11 +843,24 @@ wh.addEventListener('pointermove',e=>{if(e.pointerId!==wid)return;wr=wa(e)});
 $('gD').onpointerdown=()=>setR(0);$('gR').onpointerdown=()=>setR(1);
 document.querySelectorAll('[data-k]').forEach(b=>{const k=b.dataset.k,off=()=>{K[k]=0;b.classList.remove('on')};b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);K[k]=1;b.classList.add('on')});['pointerup','pointercancel','lostpointercapture'].forEach(n=>b.addEventListener(n,off))});
 addEventListener('contextmenu',e=>e.preventDefault());
-let run=false;$('go').onclick=()=>{$('ov').style.display='none';run=true;audio();try{const de=document.documentElement;(de.requestFullscreen?de.requestFullscreen():Promise.reject()).then(()=>screen.orientation.lock('landscape')).catch(()=>{})}catch(e){}if(AC.state=='suspended')AC.resume()};$('mt').onclick=()=>{const R=RDS[0],i=5;car.x=R.x[i];car.z=R.z[i];car.th=Math.atan2(-(R.z[i+2]-R.z[i]),R.x[i+2]-R.x[i]);car.vf=car.vl=car.w=car.vy=car.pit=car.rol=car.pv=car.rv=car.dr=car.stk=car.wet=0;car.sx=car.x;car.sz=car.z;car.y=GP(car.x,car.z)+.3;cyaw=car.th;note('Mountain road: switchbacks to the summit')};$('mb').onclick=()=>$('mm').classList.toggle('open');$('vw').onclick=tv;$('ql').onclick=()=>cycleQuality();$('rs').onclick=()=>recover('Recovered to the nearest road');$('rn').onclick=()=>{rainOn=!rainOn;$('rn').textContent=rainOn?'Clear':'Rain'};$('rc').onclick=()=>{rc={k:1,lap:1,t:0,on:0,done:0,msg:'',best:rc.best||0,lapT0:0,last:0};bp()};$('td').onclick=()=>{tod=(tod+3)%24};$('mu').onclick=()=>{muted=!muted;if(MG)MG.gain.value=muted?0:.9;$('mu').textContent=muted?'Muted':'Sound'};
+let run=false;
+/* the overlay is now the multiplayer menu; these wire its buttons */
+$('mkduo').onclick=()=>netCreate('dual');
+$('mkcup').onclick=()=>netCreate('championship');
+$('joinroom').onclick=()=>netJoin($('roomcode').value.trim());
+$('roomcode').onkeydown=e=>{if(e.key==='Enter')netJoin($('roomcode').value.trim())};
+$('startrace').onclick=()=>netSend({type:'start'});
+$('leaveroom').onclick=()=>{clearRivals();NET.racing=false;NET.locked=false;NET.code='';try{NET.ws&&NET.ws.close()}catch(e){}showMenu()};
+$('again').onclick=()=>{if(NET.you===NET.host){clearRivals();$('results').style.display='none';$('ov').style.display='flex';$('roomview').style.display='block';netSend({type:'start'})}
+ else clearRivals()};
+$('rmenu').onclick=()=>{clearRivals();NET.racing=false;NET.code='';showMenu()};
+$('go').onclick=()=>{$('ov').style.display='none';run=true;startAudio();try{const de=document.documentElement;(de.requestFullscreen?de.requestFullscreen():Promise.reject()).then(()=>screen.orientation.lock('landscape')).catch(()=>{})}catch(e){}if(AC.state=='suspended')AC.resume()};$('mt').onclick=()=>{const R=RDS[0],i=5;car.x=R.x[i];car.z=R.z[i];car.th=Math.atan2(-(R.z[i+2]-R.z[i]),R.x[i+2]-R.x[i]);car.vf=car.vl=car.w=car.vy=car.pit=car.rol=car.pv=car.rv=car.dr=car.stk=car.wet=0;car.sx=car.x;car.sz=car.z;car.y=GP(car.x,car.z)+.3;cyaw=car.th;note('Mountain road: switchbacks to the summit')};$('mb').onclick=()=>$('mm').classList.toggle('open');$('vw').onclick=tv;$('ql').onclick=()=>cycleQuality();$('rs').onclick=()=>recover('Recovered to the nearest road');$('rn').onclick=()=>{rainOn=!rainOn;$('rn').textContent=rainOn?'Clear':'Rain'};$('rc').onclick=()=>{rc={k:1,lap:1,t:0,on:0,done:0,msg:'',best:rc.best||0,lapT0:0,last:0};bp()};$('td').onclick=()=>{tod=(tod+3)%24};$('mu').onclick=()=>{muted=!muted;if(MG)MG.gain.value=muted?0:.9;$('mu').textContent=muted?'Muted':'Sound'};
 function fit(){R.setSize(innerWidth,innerHeight,false);applyRes();cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();PU.k.value=R.domElement.height/(2*Math.tan(cam.fov*PI/360));fitHud()}
 addEventListener('resize',fit);fit();fitHud();
-let last=0,fr=0,frN=0,qsShown=null,hudFrames=0,grLast=0,grFlash=0,grTxt='';const sv=new T.Vector3();
-function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/1000||.016,.05);last=now;U.t.value+=dt;adaptRes(dt);
+let last=0,fr=0,frN=0,qsShown=null,hudFrames=0,grLast=0,grFlash=0,grTxt='',physicalNow=0,lastSent=0;const sv=new T.Vector3();
+function frame(now){showMenu();
+requestAnimationFrame(frame);const dt=Math.min((now-last)/1000||.016,.05);last=now;U.t.value+=dt;adaptRes(dt);
+ physicalNow=now;netFrame(dt);
  if(wid===null)wr*=Math.exp(-dt*10);WH=Math.abs(wr)<.03?0:sg(wr)*Math.pow(Math.abs(wr),1.25);ws.style.transform='translateX('+wr*wh.clientWidth*.39+'px)';if(run)tod=(tod+dt*.03)%24;const ns=Math.min(4,Math.max(1,Math.ceil(dt/(1/120))));for(let i=0;i<ns;i++){const h=phys(dt/ns);if(h>2){shake=Math.min(1,shake+h*.08);crash(h);if(h>3)sparks(h)}}if(!(Math.hypot(car.x,car.z)<2100&&isFinite(car.y+car.th+car.vf+car.vl+car.w+car.pit+car.rol+car.vy))){respawn();note("Back on the road")}
  cg.position.set(car.x,car.y,car.z);cg.rotation.set(car.rol,car.th,car.pit);W.forEach(w=>{w.st.position.y=.9-w.s;if(w.f)w.st.rotation.y=-car.steer*.45/(1+Math.abs(car.vf)*.05);w.sp.rotation.z-=car.vf*dt/.35});
  red.emissiveIntensity=(K.B||K.S)?3.4:1.3;lit.emissiveIntensity=.5+2.2*(1-U.day.value);SWAY.t.value=U.t.value;

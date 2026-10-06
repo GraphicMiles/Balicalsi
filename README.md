@@ -60,11 +60,22 @@ server.js           static host for public/ + WebSocket relay/lobby (multiplayer
 render.yaml         Render Blueprint (single Node service, HTTP + WebSocket)
 ```
 
-## Multiplayer status
+## Multiplayer
 
-`server.js` still implements the room/lobby/countdown/finish-order protocol and relays car state
-between clients. The game client currently ships as a single-player build; wiring it to that
-relay is the next step.
+Wired to the Node/WebSocket relay in `server.js` — no extra services, no build step.
+
+- **Duo Sprint** (2 players) and **Island Cup** (6 players) rooms, created from the menu.
+- **Join by room code**; the lobby shows every player with host/you markers.
+- The server owns the **start time** (a ~3.8 s countdown, latency-corrected on each client),
+  the **grid slots**, the **finish order** and **DNF ranking**.
+- The host starts the race and can **start a rematch** from the results screen.
+- Each client broadcasts a compact state packet ~12×/s (position, heading, velocity, lean, gear,
+  lap progress, finish time). Remote cars are drawn ~130 ms in the past and interpolated
+  (position lerp + shortest-arc heading lerp), so they stay smooth at any connection quality.
+- Live **standings strip** (position, name, lap or finish time) and **rival dots on the minimap**.
+
+Room codes are 4 characters and generated per room. A client that stops answering the server
+heartbeat is dropped after ~30 s; the race continues without it and its slot simply disappears.
 
 ## Visual pass
 
