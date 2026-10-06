@@ -7,6 +7,7 @@
     "start": "node server.js",
     "test": "node test/mp-flow.test.js",
     "test:palm": "node test/palm.test.js",
+    "test:palm-field": "node test/palm-field.test.js",
     "inline-palm": "node tools/inline-palm.js",
     "inline-palm:check": "node tools/inline-palm.js --check"
   },

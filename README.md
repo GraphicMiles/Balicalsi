@@ -85,7 +85,8 @@ With the server running (`npm start` in another terminal):
 
 ```bash
 npm test                      # protocol integration: two synthetic clients, full room/race/rematch flow
-node test/palm-field.test.js  # in-game palm field: culling, quality tiers, wind, pixel check (needs playwright)
+npm run test:palm             # standalone palm module (public/palm-tree.js): tri counts, NaN, determinism per LOD tier
+npm run test:palm-field       # in-game palm field: culling, quality tiers, wind, pixel check (needs playwright)
 node test/mp-shot.js  # screenshot: a real browser racing a scripted rival (needs playwright)
 ```
 
