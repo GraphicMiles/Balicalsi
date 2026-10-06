@@ -13,9 +13,10 @@
      //   const p2 = palm.object.clone(); p2.position.set(x2, y2, z2); scene.add(p2);
 
    detail presets (opt.* override any single value):
-     'hero' ~157k tris  trunk 240x56, 27 fronds x 105 leaflets   (nearest ~4 palms)
-     'mid'  ~ 40k tris  trunk 140x32, 15 fronds x  40 leaflets
-     'low'  ~  6k tris  trunk  40x12,  9 fronds x  14 leaflets   (instancing / far)
+     'hero' ~157k tris  trunk 240x56, 27 fronds x 105 leaflets   (nearest palms)
+     'mid'  ~ 46k tris  trunk 140x32, 15 fronds x  56 leaflets, blades x2 wide
+     'low'  ~  7k tris  trunk  40x12,  9 fronds x  22 leaflets, blades x4.5 wide
+   leafW trades leaflet count for blade width so every LOD reads solid, not skeletal.
 
    LIGHTING / SHADOWS: meshes set castShadow + receiveShadow. The host scene needs a
    shadow-casting light (renderer.shadowMap.enabled = true). Fronds are opaque geometry
@@ -30,13 +31,17 @@ const vn=(x,z)=>{const i=Math.floor(x),j=Math.floor(z),u=x-i,v=z-j,a=u*u*(3-2*u)
 const fb=(x,z)=>vn(x,z)*.5+vn(x*2.1+5,z*2.1)*.25+vn(x*4.3,z*4.3+9)*.125;
 const V3=(x,y,z)=>new T.Vector3(x,y,z);
 /* ---------- detail presets: every count is a named constant so variants are derived, not retyped ---------- */
+/* leafW widens each leaflet as the leaflet count drops. A frond has to read as a solid
+   blade at distance, and with fewer leaflets the gaps between them exceed the blade
+   width, which turns the crown into a see-through wire brush. Widening costs no
+   triangles, so the cheap LODs keep a readable silhouette. */
 const DET={
- hero:{trunkRings:240,trunkSides:56,fronds:27,rachSeg:44,leaflets:105,leafRows:5,roots:44,rootSeg:14,rootSides:8,nuts:16,nutRings:18,nutSides:26},
- mid :{trunkRings:140,trunkSides:32,fronds:15,rachSeg:32,leaflets:40, leafRows:5,roots:24,rootSeg:10,rootSides:6,nuts:8, nutRings:12,nutSides:16},
- low :{trunkRings:40, trunkSides:12,fronds:9, rachSeg:12,leaflets:14, leafRows:3,roots:12,rootSeg:6, rootSides:5,nuts:5, nutRings:10,nutSides:10}};
+ hero:{trunkRings:240,trunkSides:56,fronds:27,rachSeg:44,leaflets:105,leafRows:5,leafW:1.0,roots:44,rootSeg:14,rootSides:8,nuts:16,nutRings:18,nutSides:26},
+ mid :{trunkRings:140,trunkSides:32,fronds:15,rachSeg:32,leaflets:56, leafRows:5,leafW:2.0,roots:24,rootSeg:10,rootSides:6,nuts:8, nutRings:12,nutSides:16},
+ low :{trunkRings:40, trunkSides:12,fronds:9, rachSeg:12,leaflets:22, leafRows:3,leafW:4.5,roots:12,rootSeg:6, rootSides:5,nuts:5, nutRings:10,nutSides:10}};
 const DD=DET[opts.detail]||DET.hero,dv=(k)=>opts[k]!==undefined?opts[k]:DD[k];
 const NR=dv('trunkRings'),NS=dv('trunkSides'),NF=dv('fronds'),N=dv('rachSeg'),NL=dv('leaflets'),RW=dv('leafRows'),
-      NROOT=dv('roots'),RSEG=dv('rootSeg'),RSIDE=dv('rootSides'),NNUT=dv('nuts'),NRING=dv('nutRings'),NSID=dv('nutSides');
+      NROOT=dv('roots'),RSEG=dv('rootSeg'),RSIDE=dv('rootSides'),NNUT=dv('nuts'),NRING=dv('nutRings'),NSID=dv('nutSides'),LW=dv('leafW');
 const root=new T.Group();
 const U={t:{value:0},k:{value:1}};let tris=0;const meshes=[];
 /* geometry builder: positions, colours, wind weight, wind phase */
@@ -75,7 +80,7 @@ const crown=cen(1).add(V3(0,.06,0));
   const at=s=>{const x=s*N,i=Math.min(N-1,x|0);return pts[i].clone().lerp(pts[i+1],x-i)},tn=s=>{const x=s*N,i=Math.min(N-1,x|0);return pts[i+1].clone().sub(pts[i]).normalize()};
   for(let j=0;j<NL;j++){const s=.21+.78*j/(NL-1),p=at(s),t=tn(s),up=new T.Vector3().crossVectors(sd,t).normalize(),tw=s*s*1.25,ct=Math.cos(tw),st=Math.sin(tw),
    sdT=sd.clone().multiplyScalar(ct).addScaledVector(up,st),upT=up.clone().multiplyScalar(ct).addScaledVector(sd,-st),prof=Math.pow(Math.sin(PI*cl((s-.16)/.88,0,1)),.7);
-   for(const sg of[-1,1]){const sw=lp(.62,.3,s)+(hs(j,f+sg)-.5)*.16,d=sdT.clone().multiplyScalar(sg*Math.cos(sw)).addScaledVector(t,Math.sin(sw)).addScaledVector(upT,-.4).normalize(),ln=(.1+1.0*prof)*(.9+.2*hs(j*sg,f)),W=.03*(.85+.3*hs(j,f*3)),b0=g.n;
+   for(const sg of[-1,1]){const sw=lp(.62,.3,s)+(hs(j,f+sg)-.5)*.16,d=sdT.clone().multiplyScalar(sg*Math.cos(sw)).addScaledVector(t,Math.sin(sw)).addScaledVector(upT,-.4).normalize(),ln=(.1+1.0*prof)*(.9+.2*hs(j*sg,f)),W=.03*(.85+.3*hs(j,f*3))*LW,b0=g.n;
     for(let r=0;r<RW;r++){const rho=r/(RW-1),c=p.clone().addScaledVector(d,ln*rho).addScaledVector(V3(0,-1,0),ln*.24*rho*rho),w=Math.max(W*Math.pow(1-rho,.7)*Math.min(1,.5+rho*5),W*.05),
      dk=lp(.07,.3,rho),gc=.2+.28*rho,k0=Math.min(1,dry*(.35+.65*rho)+(rho>.85?.25:0)),jr=.85+.3*hs(j,f*7+r);
      for(let e=-1;e<=1;e++){const q=c.clone().addScaledVector(t,e*w).addScaledVector(upT,Math.abs(e)*w*.7),m=e?1:.78;
