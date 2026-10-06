@@ -8,8 +8,9 @@
     "test": "node test/mp-flow.test.js",
     "test:palm": "node test/palm.test.js",
     "test:palm-field": "node test/palm-field.test.js",
-    "inline-palm": "node tools/inline-palm.js",
-    "inline-palm:check": "node tools/inline-palm.js --check"
+    "test:html": "node tools/check-html.js",
+    "test:shot": "node test/palm-shot.js",
+    "probe:scene": "node test/scene-probe.js"
   },
   "engines": {
     "node": ">=18"
