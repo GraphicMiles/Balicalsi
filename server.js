@@ -143,6 +143,7 @@ wss.on('connection', (ws) => {
       if (m.s && m.s.fn > 0 && !p.finTime) {
         p.finTime = m.s.fn;
         room.finishOrder.push(id);
+        console.log(`[race] ${p.name} finished in ${m.s.fn.toFixed(1)}s (room ${room.code})`);
         maybeFinish(room);
       }
       // relay to others (tagged with sender slot)
@@ -219,6 +220,7 @@ function maybeFinish(room) {
 }
 
 function finalize(room) {
+  console.log(`[race] finalizing room ${room.code} (${room.players.size} drivers)`);
   const arr = [...room.players.values()];
   arr.sort((a, b) => {
     if (a.finTime && b.finTime) return a.finTime - b.finTime;

@@ -84,7 +84,8 @@ Empty slots stay open (no bots): share the room code to fill them.
 With the server running (`npm start` in another terminal):
 
 ```bash
-npm test            # protocol integration: two synthetic clients, full room/race/rematch flow
+npm test                      # protocol integration: two synthetic clients, full room/race/rematch flow
+node test/palm-field.test.js  # in-game palm field: culling, quality tiers, wind, pixel check (needs playwright)
 node test/mp-shot.js  # screenshot: a real browser racing a scripted rival (needs playwright)
 ```
 
@@ -94,11 +95,12 @@ on any console error.
 
 ## Visual pass
 
-Procedurally generated scene: textured, wind-swayed palms with alpha-tested frond shadows;
-tri-planar-style terrain detail with slope/height splatting (sand, grass, jungle, basalt);
-asphalt grain, wheel-path wear and dirt-track variation; car paint and tyre normal maps; dust,
-spray and water plume particles; device-pixel-accurate HUD (needle cluster, slip meter, rotating
-minimap).
+Procedurally generated scene: ~3,600 wind-swayed coconut palms built as live vertex-coloured
+geometry (two seeded variants, ~4.3–4.9k triangles each, instanced per 600 m cell so whole cells
+frustum- and shadow-cull together); tri-planar-style terrain detail with slope/height splatting
+(sand, grass, jungle, basalt); asphalt grain, wheel-path wear and dirt-track variation; car paint
+and tyre normal maps; dust, spray and water plume particles; device-pixel-accurate HUD (needle
+cluster, slip meter, rotating minimap).
 
 The scene is generated locally from procedural geometry and textures rather than imported
 production assets.

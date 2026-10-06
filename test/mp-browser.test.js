@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
 const BASE = 'http://localhost:3000';
 let fails = 0;
 const ok = (cond, msg) => { console.log((cond ? '  ok  ' : ' FAIL ') + msg); if (!cond) fails++; };
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 
 (async () => {
   const browser = await chromium.launch({ args: ['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -18,6 +18,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const ready = (async () => {
       const p = await page;
       p.on('pageerror', e => errors.push(String(e)));
+      p.on('crash', () => errors.push('PAGE RENDERER CRASHED'));
       p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
       await p.goto(BASE, { waitUntil: 'load', timeout: 240000 });
       await p.waitForFunction(() => window.net && window.net.ok === true, null, { timeout: 240000 });
@@ -31,6 +32,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   A.pg = await A.page; B.pg = await B.page;
   const P = c => c.pg;
   ok(A.errors.length === 0 && B.errors.length === 0, 'both pages boot with zero console errors');
+
+  /* The procedural palm field (~16.5M tris) is far too heavy for SwiftShader's
+     chase-camera view — the sim would crawl 20-30x below real time and every
+     wall-clock-timed protocol assert would wobble. Park the camera over open
+     sea (the field culls to ~0 draws there, see test/palm-field.test.js) so the
+     SIM runs near real-time. Rendering under the real chase camera is covered
+     by test/palm-field.test.js; this suite is about the MP protocol. */
+  for (const c of [A, B]) await P(c).evaluate(() => {
+    window.__camU = camU; camU = () => {};
+    cam.position.set(-2700, 90, -2700); cam.lookAt(-6000, 0, -6000); cam.updateProjectionMatrix();
+  });
 
   const TO = { timeout: 60000 };
   // lobby
@@ -57,6 +69,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     P(B).waitForFunction(() => document.getElementById('ov').style.display === 'none', null, TO),
   ]);
   ok(true, 'overlay hidden on both after start');
+  /* mpStart() parks the camera behind the car on the grid — undo that again,
+     otherwise the whole palm field is in view and the sim crawls again. */
+  for (const c of [A, B]) await P(c).evaluate(() => {
+    cam.position.set(-2700, 90, -2700); cam.lookAt(-6000, 0, -6000); cam.updateProjectionMatrix();
+  });
   const rivalsA = await P(A).evaluate(() => window.rivals.length);
   const rivalsB = await P(B).evaluate(() => window.rivals.length);
   ok(rivalsA === 1 && rivalsB === 1, `each client spawned 1 rival car (${rivalsA}/${rivalsB})`);
@@ -70,17 +87,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const dSelf = Math.hypot(bPose.x - aRival.x, bPose.z - aRival.z);
   ok(dSelf < 40, `A's rendered rival matches B's true grid pose (~${dSelf.toFixed(1)} m apart)`);
 
-  // drive: hold W on A for a few seconds. Under software WebGL the sim runs
-  // ~6x slower than wall clock, so assert motion, not a speed target.
+  // drive: hold W until the car is genuinely moving (sim-speed independent).
+  // Read B's rival stream WHILE A is still under throttle: once A coast-stops,
+  // the last snapshots legitimately show vf~0.
   await P(A).keyboard.down('w');
-  await sleep(6000);
-  await P(A).keyboard.up('w');
+  await P(A).waitForFunction(() => car.vf > 0.3, null, { timeout: 120000 });
   const aSpeed = await P(A).evaluate(() => car.vf);
   ok(aSpeed > 0.3, `A's car accelerated under throttle (vf=${aSpeed.toFixed(2)})`);
   const bFeed = await P(B).evaluate(() => ({ buf: window.rivals[0].buf.length }));
   ok(bFeed.buf >= 3, `B is receiving A's state stream (${bFeed.buf} buffered snapshots)`);
   const bRivalSpeed = await P(B).evaluate(() => window.rivals[0].vf);
   ok(bRivalSpeed > 0.2, `B renders A's car moving (interpolated vf=${bRivalSpeed.toFixed(2)})`);
+  await P(A).keyboard.up('w');
 
   // hud shows live position
   const chip = await P(A).textContent('#rc');

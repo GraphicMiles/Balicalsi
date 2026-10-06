@@ -160,7 +160,7 @@ let qMode=0;
 function applyMode(){const md=QMODES[qMode];autoRes=md[1]?0:1;qTier=md[1]||'high';qp=QF[qTier];
  R.shadowMap.enabled=!!qp.shadow;sunL.castShadow=!!qp.shadow;sunL.shadow.mapSize.set(qp.map,qp.map);
  if(sunL.shadow.map){sunL.shadow.map.dispose();sunL.shadow.map=null}
- [trV,crV].forEach(m=>m.count=Math.max(1,Math.round(m.userData.total*qp.veg)));
+ PALMS.forEach(m=>{m.count=Math.max(0,Math.round(m.userData.total*qp.veg));m.castShadow=!!qp.shadow});
  pScale=1;ftAvg=16.7;fastT=0;resCd=0;applyRes()}
 function cycleQuality(){qMode=(qMode+1)%QMODES.length;applyMode();const md=QMODES[qMode];
  note('Quality: '+(qMode?md[0]+'  (fixed render scale)':'AUTO  (adaptive): '+qTier.toUpperCase()))}
@@ -367,64 +367,130 @@ const W=[];[[1.36,-.81],[1.36,.81],[-1.36,-.83],[-1.36,.83]].forEach(([x,z])=>{c
 const hl=[-1,1].map(z=>{const l=new T.SpotLight(0xfff2d8,0,90,.5,.6);l.position.set(2.3,.8,z*.6);l.target.position.set(30,0,z*.6);cg.add(l,l.target);return l});
 /* colliders + vegetation + archaeology */
 const OB=new Map(),ob=(x,z,r)=>{const k=((x/24+250)|0)*1000+((z/24+250)|0);(OB.get(k)||OB.set(k,[]).get(k)).push({x,z,r})};
-/* ---- palm frond texture (RGBA, alpha-tested) : a serrated feather leaf ---- */
-const frondTex=(()=>{const W=128,H=64,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
- g.clearRect(0,0,W,H);
- for(const dir of [-1,1]){for(let i=0;i<56;i++){const t=(i+.5)/56,x=3+t*122;
-   const prof=Math.sin(Math.PI*Math.pow(t,.78));            /* 0 at base, widest at ~40%, 0 at tip */
-   const L=(H/2-2.2)*prof*(0.82+hs(i*1.7,dir+5)*0.34);
-   if(L<1.1)continue;
-   const w=(1.5+1.0*(1-t))*(0.55+0.45*prof);
-   const ang=1.30-Math.pow(t,1.35)*0.88;                    /* steep near the base, swept toward the tip */
-   g.save();g.translate(x,H/2);g.rotate(dir*ang);
-   const lg=g.createLinearGradient(0,0,0,dir*L);lg.addColorStop(0,'#2b7223');lg.addColorStop(.6,'#46a536');lg.addColorStop(1,'#9ad06b');
-   g.fillStyle=lg;g.beginPath();g.moveTo(-w,0);g.lineTo(w,0);g.lineTo(w*.22,dir*L);g.lineTo(-w*.22,dir*L);g.closePath();g.fill();g.restore()}}
- g.strokeStyle='#255c1c';g.lineWidth=2.6;g.beginPath();g.moveTo(2,H/2);g.lineTo(126,H/2);g.stroke();
- g.strokeStyle='rgba(255,255,255,.12)';g.lineWidth=1;g.beginPath();g.moveTo(2,H/2-1);g.lineTo(126,H/2-1);g.stroke();
- const t=new T.CanvasTexture(c);t.anisotropy=8;t.encoding=T.sRGBEncoding;t.minFilter=T.LinearMipmapLinearFilter;return t})();
-/* ---- bark ---- */
-const barkTex=(()=>{const W=32,H=96,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
- g.fillStyle='#6a5238';g.fillRect(0,0,W,H);
- for(let i=0;i<26;i++){const y=i*3.8+hs(i,7)*2;g.fillStyle=`rgba(${44+hs(i,3)*36|0},${32+hs(i,5)*26|0},${20+hs(i,9)*20|0},${.35+hs(i,2)*.4})`;g.fillRect(0,y,W,1.6+hs(i,1)*2.2)}
- for(let i=0;i<70;i++){g.fillStyle=`rgba(255,240,215,${.05+hs(i,4)*.09})`;g.fillRect(hs(i,11)*W,hs(i,13)*H,1.3,1.3)}
- const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(1,3);t.anisotropy=8;t.encoding=T.sRGBEncoding;return t})();
-/* ---- wind sway: shared uniform, applied to the fronds AND to their shadow pass ---- */
+/* ---- coconut palm (Cocos nucifera) — game-density port of the standalone
+   createPalm asset (uploads/palm-viewer.html): leaning S-curved trunk with
+   ring scars + root flare, golden-angle crown of pinnate fronds, leaflets
+   that V-fold, droop and twist distally, dry fronds tinted yellow-brown,
+   nut clusters under the crown. ~4.5k tris per tree, two seeded variants,
+   per-vertex wind weight (aW) and phase (aP) driving a sway shader that is
+   also applied to the shadow depth pass. ---- */
 const SWAY={t:{value:0}};
-const swayPatch=sh=>{sh.uniforms.SW=SWAY.t;sh.vertexShader='uniform float SW;\n'+sh.vertexShader.replace('#include <begin_vertex>',
- `#include <begin_vertex>
- #ifdef USE_INSTANCING
-  vec3 io=instanceMatrix[3].xyz;
-  float ph=io.x*0.23+io.z*0.17;
-  float amp=length(transformed.xz)*0.045;
-  transformed.x+=sin(SW*1.7+ph)*amp;
-  transformed.z+=cos(SW*1.35+ph*1.3)*amp;
-  transformed.y+=sin(SW*2.3+ph)*amp*0.4;
- #endif`);return sh};
-/* ---- canopy: 9 rolled, drooping frond quads instead of the old 7 flat sprouts ---- */
-const frondMat=new T.MeshStandardMaterial({map:frondTex,alphaTest:.34,side:T.DoubleSide,roughness:.72,metalness:0});
-frondMat.onBeforeCompile=swayPatch;
-const frondDepth=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,map:frondTex,alphaTest:.34,side:T.DoubleSide});
-frondDepth.onBeforeCompile=swayPatch;
-const pg=new T.CylinderGeometry(.17,.31,9,10).translate(0,4.5,0),cgm=(()=>{
- const P=[],U=[],I=[],v=new T.Vector3(),mA=new T.Matrix4(),mB=new T.Matrix4(),NL=11,SEG=3,base=new T.Vector3(0,8.9,0);
- for(let k=0;k<NL;k++){
-  const a=k/NL*6.2832+(k%3)*.17,len=4.6+hs(k,21)*2.4,droop=.30+hs(k,22)*.34,
-        roll=((k%2)?1:-1)*(.3+hs(k,23)*.5),hw=(.85+hs(k,25)*.45)*(1-.2*hs(k,26)),off0=P.length/3;
-  mA.makeRotationX(roll);mB.makeRotationY(a);
-  for(let seg=0;seg<=SEG;seg++){const u=seg/SEG,
-    x=len*u,y=-droop*len*u*u,                              /* parabolic droop: the leaf arches over */
-    w=hw*Math.pow(Math.sin(Math.PI*Math.pow(u,.62)),.85),zc=Math.sin(u*1.7)*hw*.1;
-   for(const sz of [-1,1]){v.set(x,y,zc+sz*w).applyMatrix4(mA).applyMatrix4(mB).add(base);P.push(v.x,v.y,v.z);U.push(u,sz>0?1:0)}}
-  for(let seg=0;seg<SEG;seg++){const q=off0+seg*2;I.push(q,q+1,q+2,q+1,q+3,q+2)}}
- const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(P,3));g.setAttribute('uv',new T.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();return g})();
-const trV=new T.InstancedMesh(pg,M({map:barkTex,color:0x8d7355,roughness:.95}),3600),
-      crV=new T.InstancedMesh(cgm,frondMat,3600);
-/* alpha-tested shadows for the fronds (the default depth material ignores the leaf silhouette) */
-crV.customDepthMaterial=frondDepth;
-{const TN=3600,tr=trV,cr2=crV,o=new T.Object3D();let n=0;
+const PALMS=[];
+const palmSway=sh=>{sh.uniforms.SW=SWAY.t;sh.vertexShader='uniform float SW;\nattribute float aW;attribute float aP;\n'+sh.vertexShader.replace('#include <begin_vertex>',
+`#include <begin_vertex>
+#ifdef USE_INSTANCING
+ float ph=aP+instanceMatrix[3].x*.23+instanceMatrix[3].z*.17;
+#else
+ float ph=aP;
+#endif
+ float wv=aW*(.05+.11*min(1.,transformed.y*.12));
+ transformed.x+=sin(SW*1.4+ph+position.y*.32)*wv;
+ transformed.z+=cos(SW*1.05+ph*1.3+position.y*.26)*wv*.8;
+ transformed.y+=sin(SW*2.3+ph*2.)*wv*.3;`);return sh};
+function mkPalmG(sd){
+ const h=(a,b)=>hs(a+sd*57.31,b+sd*113.7),fbs=(a,b)=>fbm(a+sd*31.7,b+sd*17.3,3),
+  GG=()=>({p:[],c:[],w:[],q:[],i:[],n:0}),
+  VX=(g,x,y,z,r,gg,b,w,q)=>{g.p.push(x,y,z);g.c.push(r,gg,b);g.w.push(w);g.q.push(q);return g.n++},
+  wd=GG(),lf=GG(),
+  tube=(g,pts,rf,ns,col,wf,q)=>{const b0=g.n,L=pts.length-1;
+   for(let i=0;i<=L;i++){const t=pts[Math.min(i+1,L)].clone().sub(pts[Math.max(i-1,0)]).normalize(),
+    ref=Math.abs(t.y)>.9?new T.Vector3(1,0,0):new T.Vector3(0,1,0),
+    a=new T.Vector3().crossVectors(t,ref).normalize(),b=new T.Vector3().crossVectors(t,a),r=rf(i/L),s=.85+.3*h(i,9);
+    for(let k=0;k<ns;k++){const th=k/ns*2*PI,p=pts[i].clone().addScaledVector(a,Math.cos(th)*r).addScaledVector(b,Math.sin(th)*r);
+     VX(g,p.x,p.y,p.z,col[0]*s,col[1]*s,col[2]*s,wf?wf(i/L):0,q||0)}}
+   for(let i=0;i<L;i++)for(let k=0;k<ns;k++){const a2=b0+i*ns+k,b2=b0+i*ns+(k+1)%ns;g.i.push(a2,a2+ns,b2,b2,a2+ns,b2+ns)}};
+ /* trunk: centreline = lean^1.7 + S-curve wobble; radius = taper + base flare + bulge */
+ const H=9.4,lean=sd?1.7:2.9,pz=h(3,1)*6.28,
+  cen=u=>new T.Vector3(Math.pow(u,1.7)*lean+.13*Math.sin(u*9+pz),u*H,Math.sin(u*3.2+pz)*.5+u*u*.45);
+ {const NR=30,NS=9;
+  for(let i=0;i<=NR;i++){const u=i/NR,c=cen(u),
+   t=cen(Math.min(1,u+.006)).sub(cen(Math.max(0,u-.006))).normalize(),
+   a=new T.Vector3(0,0,1).addScaledVector(t,-t.z).normalize(),b=new T.Vector3().crossVectors(t,a),y=u*H,
+   base=.15+.045*(1-u)+.32*Math.exp(-y*2.2)+.05*Math.exp(-Math.pow((y-1.1)/.6,2));
+   for(let k=0;k<NS;k++){const th=k/NS*2*PI,ct=Math.cos(th),st=Math.sin(th),
+    fr=(y/.3133)%1,cres=(.5+.5*Math.cos(th-1.2))*Math.exp(-Math.pow(Math.min(fr,1-fr)/.13,2)),
+    crack=Math.exp(-y*.8)*Math.pow(fbs(ct*2,st*2+y*.3),2)*.5,
+    sh=(.78+.4*fbs(ct*1.5+y*.7,st*1.5+4))*(1-.3*cres)*(1-.3*crack)*(1-.35*Math.exp(-y*1.5)),
+    r=base-.012*cres+.006*(fbs(ct*3+y,st*3)-.5),
+    p=c.clone().addScaledVector(a,ct*r).addScaledVector(b,st*r);
+    VX(wd,p.x,p.y,p.z,.62*sh,.56*sh,.5*sh,0,0)}}
+  for(let i=0;i<NR;i++)for(let k=0;k<NS;k++){const a2=i*NS+k,b2=i*NS+(k+1)%NS;wd.i.push(a2,a2+NS,b2,b2,a2+NS,b2+NS)}}
+ /* root mass: tapered tubes flaring out of the buried base */
+ {const NR2=9+(sd*3|0);
+  for(let n=0;n<NR2;n++){const ps=n*2.66+h(n,1)*.9,ln=.75+h(n,2)*1.2,pts=[];
+   for(let i=0;i<=5;i++){const s=i/5,rr=.26+s*ln,y2=.42*Math.pow(1-s,1.6)-.08*s;
+    pts.push(new T.Vector3(Math.cos(ps+s*.6*h(n,3))*rr,y2,Math.sin(ps+s*.6*h(n,3))*rr))}
+   tube(wd,pts,s=>.06*(1-s*.7)+.012,4,[.42+.08*h(n,4),.31,.23],null,0)}}
+ /* crown: golden-angle phyllotaxis, young fronds upright, old fronds drooping */
+ const crown=cen(1).add(new T.Vector3(0,.05,0)),NF=13+sd*2,N=8,NL=11,RW=3;
+ for(let f=0;f<NF;f++){
+  const age=f/(NF-1),az=f*2.39996+h(f,1)*.6,dir=new T.Vector3(Math.cos(az),0,Math.sin(az)),sdv=new T.Vector3(-Math.sin(az),0,Math.cos(az)),
+   L=(3.9+h(f,2)*1.1)*(.9+.1*age),p0=lp(-.25,1.2,Math.pow(age,1.25))+(h(f,3)-.5)*.25,bend=lp(1.6,.5,age),dry=Math.pow(1-age,2.6),pts=[];
+  let pos=crown.clone().addScaledVector(dir,.1);const ds=L/N;
+  for(let i=0;i<=N;i++){pts.push(pos.clone());const s=i/N,th=p0-bend*s*s;pos.addScaledVector(dir,Math.cos(th)*ds).addScaledVector(new T.Vector3(0,1,0),Math.sin(th)*ds)}
+  tube(wd,pts,s=>.05*(1-s)+.008,4,[lp(.3,.42,dry),lp(.4,.33,dry),lp(.13,.15,dry)],s=>s*.75,f*.7);
+  const at=s=>{const x=s*N,i2=Math.min(N-1,x|0);return pts[i2].clone().lerp(pts[i2+1],x-i2)},
+   tn2=s=>{const x=s*N,i2=Math.min(N-1,x|0);return pts[i2+1].clone().sub(pts[i2]).normalize()};
+  for(let j=0;j<NL;j++){const s=.22+.76*j/(NL-1),p=at(s),t=tn2(s),
+   up=new T.Vector3().crossVectors(sdv,t).normalize(),tw=s*s*1.2,ct=Math.cos(tw),st=Math.sin(tw),
+   sdT=sdv.clone().multiplyScalar(ct).addScaledVector(up,st),upT=up.clone().multiplyScalar(ct).addScaledVector(sdv,-st),
+   prof=Math.pow(Math.sin(PI*cl((s-.18)/.85,0,1)),.7);
+   for(const sg of[-1,1]){
+    const sw=lp(.6,.32,s)+(h(j,f+sg)-.5)*.16,
+     d=sdT.clone().multiplyScalar(sg*Math.cos(sw)).addScaledVector(t,Math.sin(sw)).addScaledVector(upT,-.42).normalize(),
+     ln=(.32+1.15*prof)*(.9+.2*h(j*sg,f)),W=.042*(.8+.4*h(j,f*3)),b0=lf.n;
+    for(let r=0;r<RW;r++){const rho=r/(RW-1),
+     c2=p.clone().addScaledVector(d,ln*rho).addScaledVector(new T.Vector3(0,-1,0),ln*.26*rho*rho),
+     w=W*Math.pow(1-rho,.7)*Math.min(1,.4+rho*4),
+     k0=Math.min(1,dry*(.3+.7*rho)+(rho>.85?.3:0)),jr=.85+.3*h(j,f*7+r),dk=lp(.09,.34,rho),gc=.22+.3*rho;
+     for(let e=-1;e<=1;e++){const q2=c2.clone().addScaledVector(t,e*w).addScaledVector(upT,Math.abs(e)*w*.75),m=e?1:.8;
+      VX(lf,q2.x,q2.y,q2.z,lp(dk,.55,k0)*m*jr,lp(gc,.5,k0)*m*jr,lp(.06+.05*rho,.22,k0)*m*jr,(.25+.75*s)*(.5+.5*rho)*.95,f*.85+j*.05)}}
+    for(let r=0;r<RW-1;r++)for(let e=0;e<2;e++){const q3=b0+r*3+e;lf.i.push(q3,q3+1,q3+3,q3+1,q3+4,q3+3)}}}}
+ /* nut clusters tucked under the crown */
+ {const NN=4+(h(5,1)*3|0);
+  for(let n=0;n<NN;n++){const an=n*2.4+h(n,5),rr=.2+.14*h(n,6),
+   cx=crown.x+Math.cos(an)*rr,cz=crown.z+Math.sin(an)*rr,cy=crown.y-.28-.12*h(n,7),
+   sz=.85+.3*h(n,8),br=h(n,9)>.6?1:0,b0=wd.n,RN=6,CN=5;
+   for(let i=0;i<=RN;i++){const v=i/RN*PI;for(let k=0;k<CN;k++){const th=k/CN*2*PI,
+    rad=Math.sin(v)*(1+.07*Math.cos(3*th))*.14*sz,sh2=.85+.3*h(i,k+n);
+    VX(wd,cx+Math.cos(th)*rad,cy+Math.cos(v)*.21*sz,cz+Math.sin(th)*rad,lp(.33,.5,br)*sh2,lp(.4,.34,br)*sh2,lp(.15,.16,br)*sh2,.12,n)}}
+   for(let i=0;i<RN;i++)for(let k=0;k<CN;k++){const a2=b0+i*CN+k,b2=b0+i*CN+(k+1)%CN;wd.i.push(a2,a2+CN,b2,b2,a2+CN,b2+CN)}}}
+ const mk=g=>{const o=new T.BufferGeometry();
+  o.setAttribute('position',new T.Float32BufferAttribute(g.p,3));
+  o.setAttribute('color',new T.Float32BufferAttribute(g.c,3));
+  o.setAttribute('aW',new T.Float32BufferAttribute(g.w,1));
+  o.setAttribute('aP',new T.Float32BufferAttribute(g.q,1));
+  o.setIndex(g.i);o.computeVertexNormals();return o};
+ return {wood:mk(wd),leaf:mk(lf)}}
+const palmVar=[mkPalmG(0),mkPalmG(1)],
+ palmWoodM=M({vertexColors:true,roughness:.93,metalness:0}),
+ palmLeafM=M({vertexColors:true,roughness:.52,metalness:0,side:T.DoubleSide,emissive:0x1d3a0c,emissiveIntensity:.26}),
+ palmDepthM=new T.MeshDepthMaterial({depthPacking:T.RGBADepthPacking,side:T.DoubleSide});
+palmWoodM.onBeforeCompile=palmSway;palmLeafM.onBeforeCompile=palmSway;palmDepthM.onBeforeCompile=palmSway;
+/* ---- scatter: identical placement rules to the old field, but bucketed
+   into 600 m cells. Each cell is its own InstancedMesh pair (sharing one
+   variant's geometry and a hand-set bounding sphere), so frustum and
+   shadow culling work per cell instead of drawing every palm on the
+   island every frame. Alternating the variant per cell keeps neighbours
+   from looking cloned. ---- */
+{const TN=3600,CS=600,o=new T.Object3D(),cells=new Map();let n=0;
 for(let q=0;q<30000&&n<TN;q++){const x=(Math.random()*2-1)*1700,z=(Math.random()*2-1)*1700,r=Math.hypot(x,z);const Rr=RR(Math.atan2(z,x)),d=Rr-r;if(d<20)continue;const h=G(x,z);if(h<1.2||h>420||Math.hypot(G(x+3,z)-G(x-3,z),G(x,z+3)-G(x,z-3))/6>.6||Math.abs(r-.9*Rr)<10||near(x,z,10))continue;if(Math.random()>(d<110?.3:.8*(1-ss(150,420,h))))continue;
- const sc=.75+Math.random()*.9;o.position.set(x,h-.2,z);o.rotation.set(0,hs(n,17)*6.283,(hs(n,3)-.5)*.12);o.scale.set(sc,sc*(.9+hs(n,7)*.3),sc);o.updateMatrix();tr.setMatrixAt(n,o.matrix);cr2.setMatrixAt(n,o.matrix);o.rotation.set(0,0,0);ob(x,z,.45*sc+.1);n++}
-[tr,cr2].forEach(m=>{m.count=n;m.userData.total=n;m.castShadow=!!qp.shadow;m.frustumCulled=false;S.add(m)})}
+ const sc=.75+Math.random()*.9;o.position.set(x,h-.25,z);o.rotation.set(0,hs(n,17)*6.283,(hs(n,3)-.5)*.14);o.scale.set(sc,sc*(.9+hs(n,7)*.3),sc);o.updateMatrix();
+ const ci=Math.floor((x+1800)/CS),cj=Math.floor((z+1800)/CS),key=ci*64+cj;let cell=cells.get(key);
+ if(!cell){cell={ci,cj,m:[],x0:x,x1:x,z0:z,z1:z,y0:h,y1:h};cells.set(key,cell)}
+ cell.m.push(o.matrix.clone());cell.x0=Math.min(cell.x0,x);cell.x1=Math.max(cell.x1,x);cell.z0=Math.min(cell.z0,z);cell.z1=Math.max(cell.z1,z);cell.y0=Math.min(cell.y0,h);cell.y1=Math.max(cell.y1,h);
+ ob(x,z,.5*sc+.05);n++}
+for(const cell of cells.values()){
+ const v=(cell.ci+cell.cj)&1,g=palmVar[v],cx2=(cell.x0+cell.x1)/2,cz2=(cell.z0+cell.z1)/2,cy2=(cell.y0+cell.y1)/2+8,
+  rad=Math.hypot(cell.x1-cell.x0,cell.z1-cell.z0,cell.y1-cell.y0)/2+22;
+ for(const [part,mat] of [['wood',palmWoodM],['leaf',palmLeafM]]){
+  const wg=new T.BufferGeometry();wg.index=g[part].index;wg.attributes=g[part].attributes;
+  wg.boundingSphere=new T.Sphere(new T.Vector3(cx2,cy2,cz2),rad);
+  const m=new T.InstancedMesh(wg,mat,cell.m.length);
+  for(let i=0;i<cell.m.length;i++)m.setMatrixAt(i,cell.m[i]);
+  m.castShadow=!!qp.shadow;m.customDepthMaterial=palmDepthM;m.userData.total=cell.m.length;m.userData.part=part;
+  m.frustumCulled=true;/* r128 defaults InstancedMesh to unculled; our sphere is world-space (cell at origin) */
+  PALMS.push(m);S.add(m)}}}
 {const RN=420,rk=new T.InstancedMesh(new T.DodecahedronGeometry(1,0),M({color:0x2c2a29,roughness:.95,flatShading:true}),RN),o=new T.Object3D();for(let i=0;i<RN;i++){const a=Math.random()*6.2832,Rr=RR(a),d=i<300?-6+Math.random()*34:30+Math.random()*500,r=Rr-d,x=r*Math.cos(a),z=r*Math.sin(a);if(Math.abs(r-.9*Rr)<9){o.scale.set(0,0,0)}else{const sc=.8+Math.random()*Math.random()*4;const onRd=near(x,z,sc*.9+1.5);if(onRd){o.scale.set(0,0,0)}else{o.scale.set(sc,sc*.7,sc);ob(x,z,sc*.9);o.position.set(x,G(x,z)-.2*sc,z)}}if(o.scale.x)o.position.set(x,G(x,z)-.2*o.scale.x,z);o.rotation.set(Math.random(),Math.random()*6,Math.random());o.updateMatrix();rk.setMatrixAt(i,o.matrix)}rk.castShadow=rk.receiveShadow=true;rk.frustumCulled=false;S.add(rk)}
 {const a=2.4,r=.78*RR(a),x=r*Math.cos(a),z=r*Math.sin(a),y=G(x,z),sm=M({color:0x6b6459,roughness:1,flatShading:true});[[34,3,24],[26,3,18],[18,3,12]].forEach(([w,h,d],i)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),sm);m.position.set(x,y+h*(i+.5)-1,z);m.rotation.y=-a;m.castShadow=m.receiveShadow=true;S.add(m)});
 for(let i=0;i<7;i++){const lx=(i-3)*3,m=new T.Mesh(new T.CylinderGeometry(.25,.35,5,6),M({color:0x4a3524,roughness:1}));m.position.set(x+lx*Math.cos(a),y+10.5,z+lx*Math.sin(a));m.castShadow=true;S.add(m)}ob(x,z,17)}
@@ -684,11 +750,11 @@ function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-last)/10
  R.toneMappingExposure=1;
  frN++;if(frN%15==0){/* env capture: hide the weather / ocean-shader layers so the reflections match the
    clear-sky look, and keep the live render target unbound from the road material (see rlEnv) */
-  cg.visible=false;oc.visible=false;o2.visible=false;rl.visible=false;pts.visible=false;beac.visible=false;
+  cg.visible=false;oc.visible=false;o2.visible=false;rl.visible=false;pts.visible=false;beac.visible=false;for(let pi=0;pi<PALMS.length;pi++)PALMS[pi].visible=false;
   R.shadowMap.autoUpdate=false;   /* three re-renders the shadow map for each of the 6 cube faces: reuse the one we already have */
   cc.position.set(car.x,car.y+1.3,car.z);sky3.position.copy(cc.position);cc.update(R,S);
   R.shadowMap.autoUpdate=true;
-  cg.visible=true;oc.visible=o2.visible=true;rl.visible=rain>.03;pts.visible=beac.visible=true;sky3.position.copy(cam.position)}
+  cg.visible=true;oc.visible=o2.visible=true;rl.visible=rain>.03;pts.visible=beac.visible=true;for(let pi=0;pi<PALMS.length;pi++)PALMS[pi].visible=true;sky3.position.copy(cam.position)}
  R.render(S,cam);au(dt);
  hudFrames++;$('sv').textContent=Math.round(Math.hypot(car.vf,car.vl)*3.6);$('gr').textContent=RV?'R':Math.abs(car.vf)<.5?'N':car.gr+1;$('al').textContent=Math.max(0,Math.round(car.y))+' m';dash(car.rpm,Math.abs(car.vl),car.gr,grFlash);minimap();
  if(car.gr!==grLast){grLast=car.gr;grFlash=1}
@@ -944,3 +1010,4 @@ $('resFree').onclick=()=>{netQuietLeave();$('resK').hidden=true;$('kard').hidden
 try{$('mpName').value=localStorage.getItem('kd_name')||'';const c=localStorage.getItem('kd_color');if(c&&SWATCH.indexOf(c)>=0)myColor=c}catch(e){}
 buildSw();netConnect();
 </script></body></html>
+
